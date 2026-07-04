@@ -1,0 +1,23 @@
+# MEMORY.md — บันทึกความผิดพลาด/บทเรียนของ AI ในโปรเจกต์นี้
+
+> ไฟล์นี้คือ "ห้ามลืม" — ทุกครั้งที่ AI ทำพลาดแบบที่ไม่ควรเกิดซ้ำ ให้เพิ่ม entry ใหม่ที่นี่
+> ทุก entry ต้องมี 3 ช่องเสมอ: **เกิดอะไร** / **ทำไม (root cause)** / **ครั้งหน้าทำยังไง**
+> ห้ามเขียนแบบ "AI พลาดเรื่อง X" เฉยๆ — ต้องสั่งงานต่อได้จากบรรทัดเดียว
+> entry ที่ยังไม่เกิดจริงแต่กันไว้ก่อน (seed) ระบุ `[SEED]` นำหน้า
+
+---
+
+## [SEED] ห้าม copy โค้ด indicator ที่มีลิขสิทธิ์ (Pine Script proprietary) — reimplement จาก public methodology เท่านั้น {#dont-copy-proprietary-pine}
+- **เกิดอะไร**: ฟีเจอร์ "Indicator AI" (ข้อ 6) เรียนรู้จากต้นแบบ indicator ที่ใช้งานจริง — ต้นแบบในภาพคือ AlgoAlpha *Zero Lag Signals* และ LuxAlgo *Smart Money Concepts* ซึ่งเป็น Pine Script **มีลิขสิทธิ์/closed-source**
+- **ทำไม (root cause)**: การ copy/แปลโค้ด Pine ที่มีลิขสิทธิ์มาเป็น Python = ละเมิดลิขสิทธิ์ + ขัด MIT ของเราเอง (open-source แต่มีโค้ดขโมยมา = ปนเปื้อน)
+- **ครั้งหน้าทำยังไง**: implement indicator จาก **แนวคิดสาธารณะ** เท่านั้น — Zero-Lag EMA (Ehlers, public formula), SMC concepts (BOS/CHoCH/Order Block/FVG/Liquidity = methodology สาธารณะ อธิบายในตำรา/บทความ) → เขียนเป็นโค้ดเราเองจากสูตร ไม่เปิดไฟล์ Pine ต้นฉบับมาแปลบรรทัดต่อบรรทัด · ทุก indicator ในrepo ต้องมี comment อ้าง public source ของสูตร
+
+## [SEED] ห้ามดึง/redistribute ข้อมูลราคาจาก TradingView — ใช้ provider เอง {#tv-data-not-redistributable}
+- **เกิดอะไร**: ข้อ 4 อยาก "ดึงกราฟจริงจาก TradingView realtime" — แต่ TradingView ToS ห้าม scrape/redistribute ข้อมูลราคาของเขา และไม่มี public data API
+- **ทำไม (root cause)**: สับสนระหว่าง "หน้าตาเหมือน TradingView" (ทำได้ด้วย Lightweight Charts) กับ "ใช้ data ของ TradingView" (ผิด ToS) — ถ้าดึง data เขามาใส่แอพ + simulator = เสี่ยงถูกแบน/ฟ้อง
+- **ครั้งหน้าทำยังไง**: chart ใช้ **TradingView Lightweight Charts** (Apache-2.0, ฟรี, แค่ library วาดกราฟ ไม่มี data มาด้วย) + feed ข้อมูลจาก provider ของเราเอง (Binance/ccxt, Twelve Data, Finnhub, Polygon) · ห้ามใช้ Advanced Charts/Charting Library ใน public MIT repo (redistribution จำกัด ต้องขอ agreement) · ดู [DATA_SOURCES.md](docs/DATA_SOURCES.md)
+
+## [SEED] ตัวเลข/รุ่นโมเดลใน AI_MODELS.md เป็น anchor รอผู้ใช้ยืนยัน — ห้ามเปลี่ยนเอง
+- **เกิดอะไร**: รายชื่อ model "แนะนำ" + ตัวเลข VRAM/ราคาใน [AI_MODELS.md](docs/AI_MODELS.md) เป็นค่าตั้งต้นที่ผู้ใช้จะไปรีวิว/เคาะเอง
+- **ทำไม (root cause)**: model landscape เปลี่ยนเร็ว (รุ่นใหม่ออกตลอด) — ถ้า AI ไปแก้ tag "แนะนำ" หรือตัวเลขเองโดยไม่ถาม อาจขัดกับที่ผู้ใช้ตัดสินใจไว้
+- **ครั้งหน้าทำยังไง**: จะเพิ่ม/ถอด/เปลี่ยน tag แนะนำหรือตัวเลขในลิสต์โมเดล = ถามผู้ใช้ก่อนเสมอ อ้างอิงเหตุผล (benchmark/cost) ประกอบ
