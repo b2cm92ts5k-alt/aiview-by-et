@@ -8,7 +8,9 @@ Reads from environment (set by Electron main, TDD.md §2):
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
+import sys
 
 import uvicorn
 
@@ -16,6 +18,11 @@ from app.api.app import create_app
 
 
 def main() -> None:
+    # aiodns (ccxt → aiohttp) ต้องการ SelectorEventLoop — Windows default (Proactor)
+    # ทำ DNS พัง ("Could not contact DNS servers")
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
     parser = argparse.ArgumentParser(prog="aiview-engine")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()

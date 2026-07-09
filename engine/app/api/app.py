@@ -7,27 +7,50 @@ GET /health must carry the per-session token (X-Engine-Token header, or
 
 from __future__ import annotations
 
+import asyncio
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.data.service import DataService
+from app.models import Candle, MarketsResponse, Timeframe
 from app.store import db
 
 HEALTH_PATH = "/health"
 
 
-def create_app(db_path: str, token: str | None = None) -> FastAPI:
+def build_default_service() -> DataService:
+    from app.data.base import DataProvider
+    from app.data.binance import BinanceProvider
+
+    providers: list[DataProvider] = [BinanceProvider()]
+    td_key = os.environ.get("TWELVEDATA_API_KEY")
+    if td_key:
+        from app.data.twelvedata import TwelveDataProvider
+
+        providers.append(TwelveDataProvider(td_key))
+    return DataService(providers)
+
+
+def create_app(
+    db_path: str,
+    token: str | None = None,
+    data_service: DataService | None = None,
+) -> FastAPI:
     conn = db.connect(db_path)
+    service = data_service or build_default_service()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
+        await service.close()
         conn.close()
 
     app = FastAPI(title="AIView Engine", version=__version__, lifespan=lifespan)
@@ -62,6 +85,22 @@ def create_app(db_path: str, token: str | None = None) -> FastAPI:
     def put_settings(patch: dict[str, Any]) -> dict[str, Any]:
         return db.put_settings(conn, patch)
 
+    @app.get("/markets")
+    async def markets() -> MarketsResponse:
+        return await service.markets()
+
+    @app.get("/candles")
+    async def candles(
+        symbol: str,
+        tf: Timeframe,
+        since: int | None = None,
+        limit: int = Query(default=500, ge=1, le=5000),
+    ) -> list[Candle]:
+        try:
+            return await service.candles(symbol, tf, since=since, limit=limit)
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
     @app.websocket("/ws")
     async def ws(websocket: WebSocket) -> None:
         if token and websocket.query_params.get("token") != token:
@@ -69,14 +108,46 @@ def create_app(db_path: str, token: str | None = None) -> FastAPI:
             return
         await websocket.accept()
         await websocket.send_json(_envelope("engine.hello", {"version": __version__}))
+
+        stream_task: asyncio.Task[None] | None = None
+
+        async def run_stream(symbol: str, tf: Timeframe) -> None:
+            try:
+                async for candle in service.stream(symbol, tf):
+                    await websocket.send_json(
+                        _envelope("candle.update", candle.model_dump())
+                    )
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # provider/network error → tell client, keep socket
+                await websocket.send_json(
+                    _envelope("stream.error", {"symbol": symbol, "tf": tf, "detail": str(e)})
+                )
+
+        def stop_stream() -> None:
+            nonlocal stream_task
+            if stream_task is not None:
+                stream_task.cancel()
+                stream_task = None
+
         try:
             while True:
-                # M0: keepalive echo only; M1 pushes candle.update etc. (TDD §3.3)
-                msg = await websocket.receive_text()
-                if msg == "ping":
+                msg = await websocket.receive_json()
+                mtype = msg.get("type")
+                payload = msg.get("payload") or {}
+                if mtype == "ping":
                     await websocket.send_json(_envelope("pong", {}))
-        except Exception:
+                elif mtype == "subscribe":
+                    stop_stream()
+                    stream_task = asyncio.create_task(
+                        run_stream(payload["symbol"], payload["tf"])
+                    )
+                elif mtype == "unsubscribe":
+                    stop_stream()
+        except WebSocketDisconnect:
             pass
+        finally:
+            stop_stream()
 
     return app
 

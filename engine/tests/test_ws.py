@@ -15,11 +15,16 @@ def test_ws_hello_envelope(client: TestClient) -> None:
 def test_ws_ping_pong(client: TestClient) -> None:
     with client.websocket_connect("/ws") as ws:
         ws.receive_json()  # hello
-        ws.send_text("ping")
+        ws.send_json({"type": "ping"})
         assert ws.receive_json()["type"] == "pong"
 
 
 def test_ws_requires_token_when_secured(db_path: str) -> None:
-    with TestClient(create_app(db_path, token="secret-token")) as client:
+    from app.data.service import DataService
+
+    from .fakes import FakeProvider
+
+    app = create_app(db_path, token="secret-token", data_service=DataService([FakeProvider()]))
+    with TestClient(app) as client:
         with client.websocket_connect("/ws?token=secret-token") as ws:
             assert ws.receive_json()["type"] == "engine.hello"

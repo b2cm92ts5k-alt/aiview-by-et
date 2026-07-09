@@ -1,89 +1,90 @@
-import type { EngineInfo, HealthResponse } from "@aiview/shared-types";
+import type { SymbolInfo } from "@aiview/shared-types";
 import { useEffect, useState } from "react";
-import { fetchHealth, getEngineInfo } from "./api/engine";
+import { fetchMarkets, getEngineInfo } from "./api/engine";
+import Chart from "./components/Chart";
+import HealthBadge from "./components/HealthBadge";
+import SymbolSearch from "./components/SymbolSearch";
+import TimeframeSelector from "./components/TimeframeSelector";
+import Watchlist from "./components/Watchlist";
+import { useAppStore } from "./store/app";
 
-const POLL_MS = 3000;
-
-type EngineUiState =
-  | { kind: "connecting" }
-  | { kind: "online"; health: HealthResponse }
-  | { kind: "offline"; detail: string };
+// left toolbar: M1 placeholder — drawing tools มาเฟสหลัง (FEATURES §F5)
+const TOOLBAR_ICONS = ["✛", "─", "▭", "⟋", "𝑓", "⚙"];
 
 export default function App() {
-  const [state, setState] = useState<EngineUiState>({ kind: "connecting" });
-  const [info, setInfo] = useState<EngineInfo | null>(null);
+  const { engineInfo, symbol, tf, setEngineInfo, setSymbol, setTf } = useAppStore();
+  const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     const acquire = async () => {
-      const engineInfo = await getEngineInfo();
-      if (!cancelled) setInfo(engineInfo);
-      if (!engineInfo && !cancelled) {
-        setState({ kind: "offline", detail: "ไม่พบ Electron bridge (เปิดผ่าน npm run dev)" });
-      }
+      const info = await getEngineInfo();
+      if (!cancelled) setEngineInfo(info);
     };
     void acquire();
-    // main pushes engine:status when sidecar becomes ready/crashes
     const off = window.aiview?.onEngineStatus((status) => {
-      if (status.state === "ready") setInfo(status.info);
-      if (status.state === "failed") {
-        setState({ kind: "offline", detail: "engine start ไม่สำเร็จ (ดู log ของ main)" });
-      }
+      if (status.state === "ready") setEngineInfo(status.info);
+      if (status.state === "failed") setEngineInfo(null);
     });
     return () => {
       cancelled = true;
       off?.();
     };
-  }, []);
+  }, [setEngineInfo]);
 
   useEffect(() => {
-    if (!info) return;
+    if (!engineInfo) return;
     let cancelled = false;
-    const poll = async () => {
-      try {
-        const health = await fetchHealth(info);
-        if (!cancelled) setState({ kind: "online", health });
-      } catch (err) {
-        if (!cancelled) setState({ kind: "offline", detail: String(err) });
-      }
-    };
-    void poll();
-    const timer = setInterval(poll, POLL_MS);
+    fetchMarkets(engineInfo)
+      .then((m) => {
+        if (!cancelled) setSymbols(m.symbols);
+      })
+      .catch(() => {
+        /* markets ล้มเหลวไม่บล็อก chart — HealthBadge จะฟ้องปัญหา engine อยู่แล้ว */
+      });
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
-  }, [info]);
+  }, [engineInfo]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-      <div className="w-[420px] rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
-        <h1 className="text-xl font-semibold">AIView by ET</h1>
-        <p className="mt-1 text-sm text-slate-400">M0 Foundations — engine health check</p>
-
-        <div className="mt-5 flex items-center gap-3" data-testid="engine-status">
-          <span
-            className={`inline-block h-3 w-3 rounded-full ${
-              state.kind === "online"
-                ? "bg-emerald-400"
-                : state.kind === "connecting"
-                  ? "bg-amber-400 animate-pulse"
-                  : "bg-rose-500"
-            }`}
-          />
-          <span className="text-sm">
-            {state.kind === "online" && (
-              <>
-                Engine ทำงานปกติ · v{state.health.version}
-                {info ? ` · port ${info.port}` : ""}
-              </>
-            )}
-            {state.kind === "connecting" && "กำลังเชื่อมต่อ engine…"}
-            {state.kind === "offline" && (
-              <span className="text-rose-300">Engine ออฟไลน์ — {state.detail}</span>
-            )}
-          </span>
+    <div className="flex h-screen flex-col bg-[#0b0e14] text-slate-100">
+      {/* top bar */}
+      <header className="flex items-center gap-4 border-b border-slate-800 px-3 py-2">
+        <div className="text-sm font-bold tracking-wide text-cyan-400">
+          AIView <span className="font-normal text-slate-500">by ET</span>
         </div>
+        <SymbolSearch symbols={symbols} value={symbol} onSelect={setSymbol} />
+        <TimeframeSelector value={tf} onChange={setTf} />
+        <div className="ml-auto flex items-center gap-4">
+          <span className="text-sm font-semibold text-slate-200">{symbol}</span>
+          <HealthBadge info={engineInfo} />
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {/* left toolbar (placeholder M1) */}
+        <aside className="flex w-11 flex-col items-center gap-1 border-r border-slate-800 py-2">
+          {TOOLBAR_ICONS.map((icon, i) => (
+            <button
+              key={i}
+              className="flex h-8 w-8 items-center justify-center rounded text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+              title="เครื่องมือ (เฟสถัดไป)"
+            >
+              {icon}
+            </button>
+          ))}
+        </aside>
+
+        {/* chart */}
+        <main className="min-w-0 flex-1">
+          <Chart info={engineInfo} symbol={symbol} tf={tf} />
+        </main>
+
+        {/* right panel */}
+        <aside className="w-60 border-l border-slate-800">
+          <Watchlist symbols={symbols} active={symbol} onSelect={setSymbol} />
+        </aside>
       </div>
     </div>
   );
