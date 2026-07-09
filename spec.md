@@ -9,13 +9,18 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟡 Pre-production — เอกสารกำกับการพัฒนาเสร็จ ยังไม่มีโค้ด**
+**🟠 M0 Foundations — scaffold เสร็จ + verify ผ่านแล้ว [2026-07-10] (ยังไม่ push CI จริงบน GitHub)**
 
-เอกสารที่มีแล้ว:
-- ราก: `CLAUDE.md`, `MEMORY.md`, `spec.md` (ไฟล์นี้), `README.md`, `LICENSE (MIT)`
-- `docs/`: `ARCHITECTURE.md`, `TDD.md`, `FEATURES.md`, `AI_MODELS.md`, `DATA_SOURCES.md`, `ROADMAP.md`
+ที่ทำแล้ว (verify จริงทุกข้อ):
+- **engine/** — Python FastAPI: `/health`, `/settings` (GET/PUT), `/ws` (envelope `{type,ts,payload}` + `engine.hello`), token auth (X-Engine-Token / `?token=`), SQLite + versioned SQL migrations → **pytest 16/16 ✓ · ruff ✓ · mypy ✓**
+- **apps/desktop/** — Electron main+preload: spawn sidecar บน port ว่าง + token ต่อ session, poll `/health` (backoff), graceful shutdown, restart จำกัด 3 ครั้ง, vault (safeStorage → `vault.json` encrypted blobs, ไม่มี getKey IPC), IPC: `engine:info`, `vault:setKey/hasKey`, `app:notify`, push `engine:status`
+- **apps/renderer/** — React+Vite+Tailwind v4: health card (เขียว/เหลือง/แดง poll ทุก 3s) → **vitest 6/6 ✓ · tsc ✓ · vite build ✓**
+- **packages/shared-types/** — contract types เขียนมือ (M0) รอเปลี่ยนเป็น openapi-typescript ภายหลัง
+- **CI**: `.github/workflows/ci.yml` (engine: ruff+mypy+pytest · frontend: eslint+tsc+vitest+build)
+- **Smoke test ผ่าน**: `npm run dev` → vite ✓ → electron ✓ → engine spawn ✓ → main poll `/health` 200 ✓ → renderer CORS+poll `/health` 200 ต่อเนื่อง ✓ (= health เขียวใน UI)
+- `npm audit` = 0 vulnerabilities (bump Electron 33→43 เพราะ advisory)
 
-ยังไม่มี: source code, `package.json`, Python engine, scaffold ใดๆ
+เอกสาร: ราก (`CLAUDE.md`, `MEMORY.md`, `spec.md`, `README.md` + dev quickstart, `LICENSE`) + `docs/` ครบ 6 ไฟล์
 
 ## Architecture ที่ตกลงไว้ (สรุป — รายละเอียดใน docs/)
 - **Frontend**: Electron + React + TypeScript + Vite + Tailwind + TradingView Lightweight Charts
@@ -33,12 +38,15 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [2026-07-03] **Local model = VRAM-gated install**: เช็ค VRAM ก่อนเสมอ → default ตาม VRAM, รุ่นที่ VRAM ไม่ถึง lock+แจ้ง, single active model (ลงใหม่ = uninstall ตัวเก่า) — ดู FEATURES §F7
 - [2026-07-03] ลำดับ milestone ใน ROADMAP.md = ยืนยันแล้ว (M0→M5 + future Mobile)
 - [2026-07-03] **Data provider**: crypto = Binance/ccxt · non-crypto = **Twelve Data (หลัก)** + Finnhub/Polygon สำรอง · **BYOK ไม่ bundle key กลาง** — ดู DATA_SOURCES §5
+- [2026-07-10] **Migration = versioned SQL** (ไม่ใช้ alembic) — schema ยังเล็ก, dependency น้อยกว่า, list `MIGRATIONS` + `PRAGMA user_version` ใน `engine/app/store/db.py` (TDD §8 เคาะแล้ว)
+- [2026-07-10] Dev server ล็อก **IPv4 `127.0.0.1`** ทั้ง vite/wait-on/Electron — `localhost` บน Windows resolve เป็น `::1` ทำให้ wait-on ค้าง
+- [2026-07-10] Electron pin `^43` — ต่ำกว่านั้นมี security advisory (npm audit high)
 
 ## Open questions (รอผู้ใช้เคาะก่อนเข้าเฟสโค้ด)
 - [ ] ยืนยันรายชื่อ model "⭐ แนะนำ" ใน `docs/AI_MODELS.md` (default model = เคาะแล้ว: VRAM-gated)
 - [ ] จะทำ in-app model benchmark (แข่ง winrate จริง) เป็นฟีเจอร์เลยไหม (option, ไม่บล็อก M0)
 
 ## Next
-1. ผู้ใช้ review เอกสาร (โดยเฉพาะ AI_MODELS + DATA_SOURCES + ROADMAP) แล้วเคาะ open questions
-2. เข้าเฟส **M0 Foundations** (แยก session): scaffold Electron+React+Vite, Python FastAPI sidecar, health-check IPC, CI + test harness (`pytest` + `vitest`)
-3. อัพเดท Current State ไฟล์นี้เมื่อ M0 เริ่ม
+1. commit M0 scaffold + push ขึ้น GitHub → เห็น CI เขียวจริง (M0 gate ข้อสุดท้าย)
+2. ผู้ใช้เคาะ open questions (AI_MODELS แนะนำ / in-app benchmark) — ไม่บล็อก M1
+3. เข้าเฟส **M1 Chart + Realtime Data**: DataProvider adapters (Binance/ccxt ก่อน), OHLCV + WS realtime → Lightweight Charts, symbol/timeframe selector + resample 10m/45m, เคาะ state lib (Zustand vs Redux Toolkit)

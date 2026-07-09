@@ -4,11 +4,33 @@
 
 Desktop app หน้าตาคล้าย TradingView · **Electron + React** frontend · **Python/FastAPI** engine · AI ได้ทั้ง **Local (Ollama)** และ **Cloud API** · PC ก่อน แล้วเผื่อ Mobile
 
-**License:** MIT · **Status:** 🟡 Pre-production (ออกแบบเอกสารเสร็จ ยังไม่เขียนโค้ด)
+**License:** MIT · **Status:** 🟠 M0 Foundations (scaffold แอพ + engine + test harness แล้ว)
 
 > ⚠️ **Disclaimer:** เครื่องมือนี้ใช้เพื่อการวิเคราะห์และการศึกษาเท่านั้น **ไม่ใช่คำแนะนำการลงทุน** การเทรดมีความเสี่ยง ผลจากอดีต/การจำลองไม่รับประกันผลในอนาคต
 
 ---
+
+## 🚀 Dev Quickstart
+
+ต้องมี: Node 20+ · Python 3.11+
+
+```bash
+# 1) engine (ครั้งแรก)
+cd engine
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[dev]"   # Windows
+cd ..
+
+# 2) frontend
+npm install
+
+# 3) รันแอพ (Vite + Electron + spawn engine อัตโนมัติ)
+npm run dev
+```
+
+Tests: `npm test` (vitest) · `npm run test:engine` (pytest) · `npm run lint` · `npm run typecheck`
+
+โครง repo: `apps/desktop` (Electron main/preload) · `apps/renderer` (React UI) · `engine/` (Python FastAPI) · `packages/shared-types` (FE/BE contract)
 
 ## 📖 Design Documentation
 
