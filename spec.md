@@ -9,7 +9,7 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M4 Indicator-AI Builder — เสร็จ [2026-07-10] (live smoke ผ่าน — รอ CI เขียวปิด gate)**
+**🟢 M4 Indicator-AI Builder — เสร็จ + ปิด gate แล้ว [2026-07-10] (CI เขียวที่ 9253a10 — M0–M4 ปิดครบ เหลือ M5)**
 
 **M4 ที่ทำแล้ว:**
 - **DSL** (`app/indicators/dsl.py`) — safe expression evaluator (ast whitelist, ไม่มี attribute/subscript/import, ฟังก์ชันเฉพาะ whitelist, cap ความยาว/จำนวน lines) + `IndicatorDef` (name/title/description/**source บังคับ** ตาม legal guardrail/params/lines/long_when/short_when) + `compute_def` → security tests (reject `__import__`, attr access, lambda, subscript ฯลฯ) + correctness tests เทียบ builtin
@@ -60,7 +60,6 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → เข้า M5 ตาม ROADMAP
 
 ## Next
-1. commit M4 + push → CI เขียว (M4 gate)
-2. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md — **จำเป็นก่อนเข้า M5** (M5 = model manager + tag แนะนำ key-gated)
+1. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md — **จำเป็นก่อนเข้า M5** (M5 = model manager + tag แนะนำ key-gated)
 3. งานค้างไม่บล็อก: BYOK UI (TwelveData/cloud keys ผ่าน vault→engine), OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, replay-backtest ด้วย AI signals ย้อนหลัง, คลิกทดสอบ UI ในแอพจริง
 4. เข้าเฟส **M5 Model Manager + Cloud providers + Polish**: cloud AI providers (Anthropic/OpenAI/Google/OpenRouter/GitHub Models, key-gated ผ่าน vault), Ollama auto-install + VRAM gate + pull progress (F7), in-app model benchmark (เคาะแล้ว: ทำ), alerts/notifications, risk gate/disclaimer, workspaces, export report, docs contributor + GitHub release
