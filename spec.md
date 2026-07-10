@@ -9,7 +9,7 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M2 AI Signals — เสร็จ + verify ผ่านแล้ว [2026-07-10] (M0+M1 ปิด gate, CI main เขียวที่ a769f66)**
+**🟢 M2 AI Signals — เสร็จ + ปิด gate แล้ว [2026-07-10] (CI GitHub เขียวที่ 6bbc41e — M0/M1/M2 ปิดครบ)**
 
 **M2 ที่ทำแล้ว (verify จริงทุกข้อ):**
 - **Indicator engine** (`app/indicators/`) — basic (SMA/EMA/RSI Wilder/MACD/ATR), Zero-Lag EMA (Ehlers public formula), SMC (swing fractals, BOS/CHoCH, FVG, Order Block — public methodology, ทุกไฟล์มี comment อ้าง source ตามกฎ) + registry set "core" + `GET /indicators` — เทสเทียบค่าคำนวณมือครบ
@@ -51,7 +51,6 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [ ] จะทำ in-app model benchmark (แข่ง winrate จริง) เป็นฟีเจอร์เลยไหม (option, ไม่บล็อก M0)
 
 ## Next
-1. commit M2 + push → CI เขียว (M2 gate)
-2. ผู้ใช้เคาะ open questions (AI_MODELS แนะนำ / in-app benchmark)
-3. งานค้างไม่บล็อก M3: TwelveData ทดสอบกับ key จริง (BYOK UI), OHLCV cache SQLite (`candles_cache`), rate-limit token bucket, SMC markers วาดบน chart (ตอนนี้มีแต่เส้น signal), signal history UI
+1. ผู้ใช้เคาะ open questions (AI_MODELS แนะนำ / in-app benchmark)
+2. งานค้างไม่บล็อก M3: TwelveData ทดสอบกับ key จริง (BYOK UI), OHLCV cache SQLite (`candles_cache`), rate-limit token bucket, SMC markers วาดบน chart (ตอนนี้มีแต่เส้น signal), signal history UI
 4. เข้าเฟส **M3 Simulator + Dashboard + History**: backtest engine (เคาะ lib: backtesting.py vs vectorbt — TDD §1), paper live-sim, stats (winrate/R/expectancy/PF/DD/equity curve), dashboard UI + history table + export CSV/JSON
