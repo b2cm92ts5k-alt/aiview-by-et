@@ -9,7 +9,7 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M5 Model Manager + Cloud providers + Polish — โค้ด+เทสเสร็จ [2026-07-10] (รอ CI ปิด gate — จบ roadmap M0–M5)**
+**🏁 M0–M5 จบครบทั้ง roadmap [2026-07-10] — M5 ปิด gate ที่ CI เขียว c8ebb9c · พร้อมตัดสินใจ release v0.1.0**
 
 **M5 ที่ทำแล้ว (verify จริง):**
 - **Cloud AI providers** (`ai/cloud.py`) — Anthropic / OpenAI / Google / OpenRouter / GitHub Models (OpenAI-compat base) ทั้งหมด key-gated: key ไม่ valid → list ว่าง (F7) · **key handoff** `POST/GET/DELETE /providers/keys` — main อ่าน vault → ส่งเข้า engine in-memory ต่อ session (TDD §9, ไม่ log/ไม่ลงดิสก์) รวม `twelvedata` (BYOK data → /markets โผล่ทันที)
@@ -63,7 +63,6 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → ทำแล้วใน M5
 
 ## Next
-1. commit M5 + push → CI เขียว (M5 gate = **จบ roadmap M0–M5**)
-2. ตัดสินใจ release: tag v0.1.0 + GitHub Release (รอผู้ใช้สั่ง — outward-facing) · repo public + CI พร้อมแล้ว
+1. ตัดสินใจ release: tag v0.1.0 + GitHub Release (รอผู้ใช้สั่ง — outward-facing) · repo public + CI พร้อมแล้ว
 3. Backlog หลัง release: ทดสอบ cloud provider กับ key จริง, Ollama auto-install ตัว installer (ตอนนี้เปิดหน้า download), default model auto-select ตาม VRAM ตอน first-run, OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, Playwright E2E, คลิกทดสอบ UI จริงทุก view, max-risk warning (F9 ส่วนที่เหลือ), openapi-typescript แทน shared-types มือ
 4. Future: Mobile (ROADMAP) — reuse engine API
