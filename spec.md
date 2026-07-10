@@ -71,6 +71,7 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → ทำแล้วใน M5
 
 ## Next
-1. ตัดสินใจ release: tag v0.1.0 + GitHub Release (รอผู้ใช้สั่ง — outward-facing) · repo public + CI พร้อมแล้ว
+1. ✅ **RELEASED v0.1.0** [2026-07-10] — tag `v0.1.0` + GitHub Release publish แล้ว พร้อม installer แนบ: https://github.com/b2cm92ts5k-alt/aiview-by-et/releases/tag/v0.1.0
+2. รอ user feedback จากการใช้จริง → เก็บเป็น backlog พัฒนาต่อ (ข้อ 3 ด้านล่าง)
 3. Backlog หลัง release: ทดสอบ cloud provider กับ key จริง, Ollama auto-install ตัว installer (ตอนนี้เปิดหน้า download), default model auto-select ตาม VRAM ตอน first-run, OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, Playwright E2E, คลิกทดสอบ UI จริงทุก view, max-risk warning (F9 ส่วนที่เหลือ), openapi-typescript แทน shared-types มือ
 4. Future: Mobile (ROADMAP) — reuse engine API

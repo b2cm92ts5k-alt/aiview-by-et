@@ -7,6 +7,11 @@
 
 ---
 
+## [2026-07-10] electron-builder ต้องการ electronVersion แบบ fixed ใน npm workspace {#electron-builder-fixed-version}
+- **เกิดอะไร**: `electron-builder --win` fail ทันที `Electron version "^43.0.0" is a range, not a fixed version` — build installer ไม่ได้ ทั้งที่ `npm run dev` (electron รันปกติ) ผ่านหมด
+- **ทำไม (root cause)**: repo เป็น npm workspaces → electron ถูก hoist ไป `node_modules` ราก ไม่ได้อยู่ใต้ `apps/desktop/node_modules` → electron-builder resolve เวอร์ชันจาก dependency range ใน package.json ของ desktop ไม่ได้ (ปกติมันอ่านจาก installed module)
+- **ครั้งหน้าทำยังไง**: ใส่ `"electronVersion": "<fixed>"` ใน `build` config ของ electron-builder ตรงๆ (เช่น `43.1.0` — ดูจาก `npx electron --version`) · กฎนี้ใช้กับทุก monorepo/workspace ที่ hoist electron
+
 ## [SEED] ห้าม copy โค้ด indicator ที่มีลิขสิทธิ์ (Pine Script proprietary) — reimplement จาก public methodology เท่านั้น {#dont-copy-proprietary-pine}
 - **เกิดอะไร**: ฟีเจอร์ "Indicator AI" (ข้อ 6) เรียนรู้จากต้นแบบ indicator ที่ใช้งานจริง — ต้นแบบในภาพคือ AlgoAlpha *Zero Lag Signals* และ LuxAlgo *Smart Money Concepts* ซึ่งเป็น Pine Script **มีลิขสิทธิ์/closed-source**
 - **ทำไม (root cause)**: การ copy/แปลโค้ด Pine ที่มีลิขสิทธิ์มาเป็น Python = ละเมิดลิขสิทธิ์ + ขัด MIT ของเราเอง (open-source แต่มีโค้ดขโมยมา = ปนเปื้อน)
