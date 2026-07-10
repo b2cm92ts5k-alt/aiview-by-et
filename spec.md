@@ -9,7 +9,14 @@
 PC ก่อน แล้วเผื่อ Mobile. Source-available บน GitHub ภายใต้ **PolyForm Noncommercial 1.0.0** (v0.1.1+ — ใช้ฟรี non-commercial, ห้ามเชิงพาณิชย์ · v0.1.0 ปล่อยเป็น MIT ไปแล้วเพิกถอนไม่ได้).
 
 ## Current State
-**🏁 M0–M5 จบครบ + **installer v0.1.0 พร้อมแล้ว** [2026-07-10] — รอผู้ใช้ลองใช้จริงก่อนตัดสินใจ release public**
+**🚀 RELEASED — v0.1.0 (MIT) แล้ว v0.1.1 (PolyForm Noncommercial) [2026-07-10]**
+
+**v0.1.1 (ล่าสุด):**
+- **License → PolyForm Noncommercial 1.0.0**: source-available ใช้ฟรี non-commercial ห้ามเชิงพาณิชย์ (ผู้ใช้สั่ง) · v0.1.0 ที่ปล่อยเป็น MIT ยังเป็น MIT ถาวร · dependency ภายนอกไม่เปลี่ยน · อัพเดต ref ทุกที่ (package.json/pyproject/docs)
+- **Fix: ปิดแอพไม่ดับ Ollama/local model** — Windows ผูก child ของ Electron กับ job object kill-on-close ทำให้ `ollama serve` ที่แอพสตาร์ทถูก kill ตาม · แก้เป็น `Start-Process -WindowStyle Hidden` (process อิสระคนละ job) → Ollama+โมเดลทำงานต่อหลังปิดแอพ · before-quit ยังยุ่งแค่ engine ตัวเอง
+- version bump 0.1.1 ทุก package · verify: pytest 137/137, vitest 29/29, typecheck+lint สะอาด
+
+**Packaging (v0.1.0, ยังใช้ pipeline เดิม):**
 
 **Packaging (ทำหลัง M5 ตามที่ผู้ใช้สั่ง):**
 - **PyInstaller** bundle engine → `aiview-engine.exe` (onedir 141MB, prompts/ccxt/uvicorn/websockets ครบ) — smoke เดี่ยวผ่าน: health + ดึงแท่ง Binance จริง + indicators
@@ -71,7 +78,7 @@ PC ก่อน แล้วเผื่อ Mobile. Source-available บน GitH
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → ทำแล้วใน M5
 
 ## Next
-1. ✅ **RELEASED v0.1.0** [2026-07-10] — tag `v0.1.0` + GitHub Release publish แล้ว พร้อม installer แนบ: https://github.com/b2cm92ts5k-alt/aiview-by-et/releases/tag/v0.1.0
+1. ✅ **RELEASED**: v0.1.0 (MIT) → https://github.com/b2cm92ts5k-alt/aiview-by-et/releases/tag/v0.1.0 · **v0.1.1 (PolyForm Noncommercial, Latest)** → https://github.com/b2cm92ts5k-alt/aiview-by-et/releases/tag/v0.1.1
 2. รอ user feedback จากการใช้จริง → เก็บเป็น backlog พัฒนาต่อ (ข้อ 3 ด้านล่าง)
 3. Backlog หลัง release: ทดสอบ cloud provider กับ key จริง, Ollama auto-install ตัว installer (ตอนนี้เปิดหน้า download), default model auto-select ตาม VRAM ตอน first-run, OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, Playwright E2E, คลิกทดสอบ UI จริงทุก view, max-risk warning (F9 ส่วนที่เหลือ), openapi-typescript แทน shared-types มือ
 4. Future: Mobile (ROADMAP) — reuse engine API
