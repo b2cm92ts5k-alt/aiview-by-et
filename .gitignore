@@ -4,8 +4,8 @@
 !.env.example
 *.key
 *.pem
-secrets/
-vault/
+/secrets/
+/vault/
 
 # --- Node / Electron / Frontend ---
 node_modules/
@@ -33,11 +33,12 @@ env/
 *.egg
 
 # --- Data / DB / cache (local runtime) ---
+# root-relative เท่านั้น! pattern `data/` เฉยๆ เคย ignore engine/app/data/ (source) จน CI พัง
 *.sqlite
 *.sqlite3
 *.db
-data/
-cache/
+/data/
+/cache/
 *.parquet
 
 # --- Packaging ---

@@ -12,6 +12,11 @@
 - **ทำไม (root cause)**: การ copy/แปลโค้ด Pine ที่มีลิขสิทธิ์มาเป็น Python = ละเมิดลิขสิทธิ์ + ขัด MIT ของเราเอง (open-source แต่มีโค้ดขโมยมา = ปนเปื้อน)
 - **ครั้งหน้าทำยังไง**: implement indicator จาก **แนวคิดสาธารณะ** เท่านั้น — Zero-Lag EMA (Ehlers, public formula), SMC concepts (BOS/CHoCH/Order Block/FVG/Liquidity = methodology สาธารณะ อธิบายในตำรา/บทความ) → เขียนเป็นโค้ดเราเองจากสูตร ไม่เปิดไฟล์ Pine ต้นฉบับมาแปลบรรทัดต่อบรรทัด · ทุก indicator ในrepo ต้องมี comment อ้าง public source ของสูตร
 
+## [2026-07-10] .gitignore pattern แบบ generic (`data/`) กลืน source dir จน CI แดง — และห้ามปิด milestone ก่อนเห็น CI เขียว {#gitignore-ate-source-dir}
+- **เกิดอะไร**: commit M1 แล้ว CI พังด้วย `ModuleNotFoundError: No module named 'app.data'` — `.gitignore` มี `data/` (ตั้งใจ ignore runtime data) แต่มัน match ทุก dir ชื่อ data รวมถึง `engine/app/data/` ที่เป็น source ทั้งชุด → `git add -A` ข้ามเงียบๆ · local test ผ่านหมดเพราะไฟล์อยู่บนดิสก์ · ซ้ำร้ายคือประกาศ "M1 เสร็จ" แล้วเดินหน้า M2 ทั้งที่ CI ยังไม่เขียว
+- **ทำไม (root cause)**: (1) pattern ignore แบบไม่ระบุ root (`data/`, `cache/`, `vault/`) match ได้ทุกความลึก (2) กฎ milestone gate บอกให้รอ CI เขียวแต่ไม่รอ — เชื่อ local เขียวแทน
+- **ครั้งหน้าทำยังไง**: (1) dir ignore ประเภท runtime ให้ขึ้นต้น `/` เสมอ (root-relative) (2) หลัง commit ไฟล์ใหม่ ให้เช็ค `git status` ว่าไม่มี dir ที่ควร track โผล่เป็น `??` และถ้าตั้ง dir ชื่อสามัญ (data/cache/vault) ให้ `git check-ignore -v <ไฟล์>` ก่อน (3) milestone ปิดได้เมื่อ **CI บน GitHub เขียวจริงเท่านั้น** — local เขียวไม่นับ
+
 ## [SEED] ห้ามดึง/redistribute ข้อมูลราคาจาก TradingView — ใช้ provider เอง {#tv-data-not-redistributable}
 - **เกิดอะไร**: ข้อ 4 อยาก "ดึงกราฟจริงจาก TradingView realtime" — แต่ TradingView ToS ห้าม scrape/redistribute ข้อมูลราคาของเขา และไม่มี public data API
 - **ทำไม (root cause)**: สับสนระหว่าง "หน้าตาเหมือน TradingView" (ทำได้ด้วย Lightweight Charts) กับ "ใช้ data ของ TradingView" (ผิด ToS) — ถ้าดึง data เขามาใส่แอพ + simulator = เสี่ยงถูกแบน/ฟ้อง
