@@ -1,7 +1,8 @@
-import type { Candle, EngineInfo, Timeframe } from "@aiview/shared-types";
+import type { Candle, EngineInfo, Signal, Timeframe } from "@aiview/shared-types";
 import {
   CandlestickSeries,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type UTCTimestamp,
   createChart,
@@ -44,14 +45,17 @@ export default function Chart({
   info,
   symbol,
   tf,
+  signal = null,
 }: {
   info: EngineInfo | null;
   symbol: string;
   tf: Timeframe;
+  signal?: Signal | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const priceLinesRef = useRef<IPriceLine[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,6 +89,22 @@ export default function Chart({
       cancelled = true;
     };
   }, [info, symbol, tf]);
+
+  // signal overlay: เส้น entry/SL/TP (F1)
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+    for (const line of priceLinesRef.current) series.removePriceLine(line);
+    priceLinesRef.current = [];
+    if (!signal || signal.symbol !== symbol) return;
+    const mk = (price: number, color: string, title: string) =>
+      priceLinesRef.current.push(
+        series.createPriceLine({ price, color, title, lineWidth: 1, lineStyle: 2 }),
+      );
+    mk(signal.entry, "#22d3ee", `entry ${signal.side}`);
+    mk(signal.sl, "#f43f5e", "SL");
+    signal.tp.forEach((tp, i) => mk(tp, "#22d3a5", `TP${i + 1}`));
+  }, [signal, symbol]);
 
   useCandleStream(info, symbol, tf, (candle) => {
     if (candle.symbol === symbol && candle.tf === tf) {

@@ -1,8 +1,10 @@
-import type { SymbolInfo } from "@aiview/shared-types";
+import type { Signal, SymbolInfo } from "@aiview/shared-types";
 import { useEffect, useState } from "react";
 import { fetchMarkets, getEngineInfo } from "./api/engine";
 import Chart from "./components/Chart";
 import HealthBadge from "./components/HealthBadge";
+import MtfTable from "./components/MtfTable";
+import SignalPanel from "./components/SignalPanel";
 import SymbolSearch from "./components/SymbolSearch";
 import TimeframeSelector from "./components/TimeframeSelector";
 import Watchlist from "./components/Watchlist";
@@ -14,6 +16,7 @@ const TOOLBAR_ICONS = ["✛", "─", "▭", "⟋", "𝑓", "⚙"];
 export default function App() {
   const { engineInfo, symbol, tf, setEngineInfo, setSymbol, setTf } = useAppStore();
   const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
+  const [signal, setSignal] = useState<Signal | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,12 +81,16 @@ export default function App() {
 
         {/* chart */}
         <main className="min-w-0 flex-1">
-          <Chart info={engineInfo} symbol={symbol} tf={tf} />
+          <Chart info={engineInfo} symbol={symbol} tf={tf} signal={signal} />
         </main>
 
         {/* right panel */}
-        <aside className="w-60 border-l border-slate-800">
-          <Watchlist symbols={symbols} active={symbol} onSelect={setSymbol} />
+        <aside className="flex w-72 flex-col overflow-y-auto border-l border-slate-800">
+          <SignalPanel info={engineInfo} symbol={symbol} tf={tf} onSignal={setSignal} />
+          <MtfTable info={engineInfo} symbol={symbol} />
+          <div className="min-h-0 flex-1">
+            <Watchlist symbols={symbols} active={symbol} onSelect={setSymbol} />
+          </div>
         </aside>
       </div>
     </div>

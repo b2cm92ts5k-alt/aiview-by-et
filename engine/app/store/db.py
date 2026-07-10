@@ -23,6 +23,19 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE IF NOT EXISTS signals (
+            id         TEXT PRIMARY KEY,
+            symbol     TEXT NOT NULL,
+            tf         TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            payload    TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals (symbol, created_at DESC);
+        """,
+    ),
 ]
 
 SCHEMA_VERSION = MIGRATIONS[-1][0]
@@ -51,6 +64,29 @@ def _migrate(conn: sqlite3.Connection) -> None:
 def get_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     rows = conn.execute("SELECT key, value FROM settings").fetchall()
     return {row["key"]: json.loads(row["value"]) for row in rows}
+
+
+def save_signal(conn: sqlite3.Connection, signal_id: str, symbol: str, tf: str,
+                created_at: int, payload: dict[str, Any]) -> None:
+    conn.execute(
+        "INSERT INTO signals (id, symbol, tf, created_at, payload) VALUES (?, ?, ?, ?, ?)",
+        (signal_id, symbol, tf, created_at, json.dumps(payload)),
+    )
+    conn.commit()
+
+
+def list_signals(conn: sqlite3.Connection, symbol: str | None = None,
+                 limit: int = 100) -> list[dict[str, Any]]:
+    if symbol:
+        rows = conn.execute(
+            "SELECT payload FROM signals WHERE symbol = ? ORDER BY created_at DESC LIMIT ?",
+            (symbol, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT payload FROM signals ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [json.loads(r["payload"]) for r in rows]
 
 
 def put_settings(conn: sqlite3.Connection, patch: dict[str, Any]) -> dict[str, Any]:

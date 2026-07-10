@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeWebSocket } from "../test/mocks";
 
 const { series } = vi.hoisted(() => ({
-  series: { setData: vi.fn(), update: vi.fn() },
+  series: {
+    setData: vi.fn(),
+    update: vi.fn(),
+    createPriceLine: vi.fn((_opts: { price: number }) => ({})),
+    removePriceLine: vi.fn(),
+  },
 }));
 
 vi.mock("lightweight-charts", () => {
@@ -28,6 +33,8 @@ beforeEach(() => {
   FakeWebSocket.instances = [];
   series.setData.mockClear();
   series.update.mockClear();
+  series.createPriceLine.mockClear();
+  series.removePriceLine.mockClear();
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([candle]) }),
@@ -61,6 +68,21 @@ describe("Chart", () => {
     expect(series.update).toHaveBeenCalledWith(
       expect.objectContaining({ close: 1.9 }),
     );
+  });
+
+  it("draws entry/SL/TP price lines for an active signal", async () => {
+    const signal = {
+      id: "s1", symbol: "BTC/USDT", tf: "15m" as const, side: "long" as const,
+      entry: 1.2, sl: 0.9, tp: [1.5, 1.8], rr: 1, confidence: 60, reason: "",
+      indicators_used: {}, model: "m", position_size_hint: null,
+      leverage_hint: null, created_at: 1, valid_until: null,
+    };
+    render(<Chart info={info} symbol="BTC/USDT" tf="15m" signal={signal} />);
+    await waitFor(() => {
+      expect(series.createPriceLine).toHaveBeenCalledTimes(4); // entry + SL + TP1 + TP2
+    });
+    const prices = series.createPriceLine.mock.calls.map((c) => c[0].price);
+    expect(prices).toEqual([1.2, 0.9, 1.5, 1.8]);
   });
 
   it("ignores updates for a different symbol", async () => {

@@ -1,8 +1,11 @@
 import type {
+  AnalyzeRequest,
   Candle,
   EngineInfo,
   HealthResponse,
+  IndicatorResult,
   MarketsResponse,
+  Signal,
   Timeframe,
 } from "@aiview/shared-types";
 
@@ -51,4 +54,41 @@ export function fetchCandles(
 
 export function wsUrl(info: EngineInfo): string {
   return `ws://127.0.0.1:${info.port}/ws?token=${encodeURIComponent(info.token)}`;
+}
+
+export function fetchIndicators(
+  info: EngineInfo,
+  symbol: string,
+  tf: Timeframe,
+  set = "core",
+  limit = 300,
+): Promise<IndicatorResult[]> {
+  const params = new URLSearchParams({ symbol, tf, set, limit: String(limit) });
+  return get<IndicatorResult[]>(info, `/indicators?${params}`);
+}
+
+export function fetchAiModels(info: EngineInfo): Promise<Record<string, string[]>> {
+  return get<Record<string, string[]>>(info, "/ai/models");
+}
+
+/** null = AI เห็นว่าไม่มี setup ตอนนี้ */
+export async function postAnalyze(
+  info: EngineInfo,
+  req: AnalyzeRequest,
+): Promise<Signal | null> {
+  const res = await fetch(`${base(info)}/analyze`, {
+    method: "POST",
+    headers: { ...headers(info), "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* keep http status */
+    }
+    throw new Error(detail);
+  }
+  return (await res.json()) as Signal | null;
 }

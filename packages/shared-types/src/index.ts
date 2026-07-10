@@ -61,6 +61,51 @@ export interface MarketsResponse {
   symbols: SymbolInfo[];
 }
 
+export type Side = "long" | "short";
+
+/** FEATURES.md §F1 — signal schema (mirror of engine app/models.py Signal) */
+export interface Signal {
+  id: string;
+  symbol: string;
+  tf: Timeframe;
+  side: Side;
+  entry: number;
+  sl: number;
+  tp: number[];
+  rr: number;
+  confidence: number;
+  reason: string;
+  indicators_used: Record<string, string>;
+  model: string;
+  position_size_hint: string | null;
+  leverage_hint: string | null;
+  created_at: number;
+  valid_until: number | null;
+}
+
+/** POST /analyze body */
+export interface AnalyzeRequest {
+  symbol: string;
+  tfs: Timeframe[];
+  provider: string;
+  model: string;
+}
+
+export interface IndicatorMarker {
+  ts: number;
+  kind: string;
+  price: number;
+  price2: number | null;
+  label: string | null;
+}
+
+/** GET /indicators element */
+export interface IndicatorResult {
+  name: string;
+  lines: Record<string, (number | null)[]>;
+  markers: IndicatorMarker[];
+}
+
 /** Engine lifecycle status pushed from Electron main to renderer */
 export type EngineStatus =
   | { state: "starting" }

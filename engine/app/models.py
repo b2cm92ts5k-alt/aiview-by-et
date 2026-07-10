@@ -39,3 +39,34 @@ class SymbolInfo(BaseModel):
 class MarketsResponse(BaseModel):
     asset_classes: list[AssetClass]
     symbols: list[SymbolInfo]
+
+
+Side = Literal["long", "short"]
+
+
+class Signal(BaseModel):
+    """FEATURES.md §F1 signal schema (core fields per ARCHITECTURE.md §5)."""
+
+    id: str
+    symbol: str
+    tf: Timeframe  # primary tf the setup is based on
+    side: Side
+    entry: float
+    sl: float
+    tp: list[float]  # 1..3 targets
+    rr: float
+    confidence: int  # 0-100
+    reason: str
+    indicators_used: dict[str, str] = {}
+    model: str
+    position_size_hint: str | None = None
+    leverage_hint: str | None = None
+    created_at: int  # UTC ms
+    valid_until: int | None = None
+
+
+class AnalyzeRequest(BaseModel):
+    symbol: str
+    tfs: list[Timeframe] = ["15m", "60m", "4h"]  # first = primary
+    provider: str = "ollama"
+    model: str

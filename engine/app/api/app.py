@@ -19,8 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.ai import orchestrator
+from app.ai.base import AIProvider
 from app.data.service import DataService
-from app.models import Candle, MarketsResponse, Timeframe
+from app.indicators.base import IndicatorResult, candles_to_df
+from app.indicators.registry import SETS
+from app.models import AnalyzeRequest, Candle, MarketsResponse, Signal, Timeframe
 from app.store import db
 
 HEALTH_PATH = "/health"
@@ -39,18 +43,29 @@ def build_default_service() -> DataService:
     return DataService(providers)
 
 
+def build_default_ai_providers() -> dict[str, AIProvider]:
+    from app.ai.ollama import OllamaProvider
+
+    # cloud providers (Anthropic/OpenAI/...) มาเฟส M5 — key-gated ผ่าน vault
+    return {"ollama": OllamaProvider()}
+
+
 def create_app(
     db_path: str,
     token: str | None = None,
     data_service: DataService | None = None,
+    ai_providers: dict[str, AIProvider] | None = None,
 ) -> FastAPI:
     conn = db.connect(db_path)
     service = data_service or build_default_service()
+    ai = ai_providers if ai_providers is not None else build_default_ai_providers()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         await service.close()
+        for p in ai.values():
+            await p.close()
         conn.close()
 
     app = FastAPI(title="AIView Engine", version=__version__, lifespan=lifespan)
@@ -100,6 +115,54 @@ def create_app(
             return await service.candles(symbol, tf, since=since, limit=limit)
         except KeyError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.get("/indicators")
+    async def indicators(
+        symbol: str,
+        tf: Timeframe,
+        set: str = "core",
+        limit: int = Query(default=500, ge=50, le=5000),
+    ) -> list[IndicatorResult]:
+        compute = SETS.get(set)
+        if compute is None:
+            raise HTTPException(status_code=404, detail=f"unknown indicator set: {set}")
+        try:
+            data = await service.candles(symbol, tf, limit=limit)
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        return compute(candles_to_df(data))
+
+    @app.get("/ai/models")
+    async def ai_models(provider: str | None = None) -> dict[str, list[str]]:
+        # key-gated (F7): เฉพาะ provider ที่พร้อมใช้เท่านั้นที่ถูก register
+        selected = {provider: ai[provider]} if provider and provider in ai else ai
+        return {name: await p.list_models() for name, p in selected.items()}
+
+    @app.post("/analyze")
+    async def analyze(req: AnalyzeRequest) -> Signal | None:
+        """คืน Signal หรือ null เมื่อ AI เห็นว่าไม่มี setup (ไม่ใช่ error)."""
+        provider = ai.get(req.provider)
+        if provider is None:
+            raise HTTPException(status_code=404, detail=f"unknown AI provider: {req.provider}")
+        if not req.tfs:
+            raise HTTPException(status_code=422, detail="tfs must not be empty")
+        try:
+            signal = await orchestrator.analyze(service, provider, req.model,
+                                                req.symbol, req.tfs)
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except orchestrator.NoSetupError:
+            return None
+        except orchestrator.SignalParseError as e:
+            raise HTTPException(status_code=502, detail=f"AI response invalid: {e}") from e
+        db.save_signal(conn, signal.id, signal.symbol, signal.tf,
+                       signal.created_at, signal.model_dump())
+        return signal
+
+    @app.get("/signals")
+    def signals(symbol: str | None = None, limit: int = Query(default=100, ge=1, le=500)
+                ) -> list[Signal]:
+        return [Signal(**p) for p in db.list_signals(conn, symbol, limit)]
 
     @app.websocket("/ws")
     async def ws(websocket: WebSocket) -> None:

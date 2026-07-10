@@ -9,26 +9,18 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M1 Chart + Realtime Data — เสร็จ + verify ผ่านแล้ว [2026-07-10] (M0 ปิด gate: CI GitHub เขียว run 29048809008)**
+**🟢 M2 AI Signals — เสร็จ + verify ผ่านแล้ว [2026-07-10] (M0+M1 ปิด gate, CI main เขียวที่ a769f66)**
 
-**M1 ที่ทำแล้ว (verify จริงทุกข้อ):**
-- **Engine data layer** — `models.py` (Candle/SymbolInfo/11 tf ตาม ARCHITECTURE §5–6), `DataProvider` interface, `BinanceProvider` (ccxt.pro REST+WS, ฟรีไม่ต้อง key), `TwelveDataProvider` (BYOK ผ่าน env `TWELVEDATA_API_KEY`, realtime = poll, test ด้วย MockTransport), resample 10m/45m/1Y (pandas batch + `StreamAggregator` streaming), `DataService` route symbol→provider + ซ่อน resample
-- **Endpoints ใหม่**: `GET /markets`, `GET /candles?symbol&tf&since&limit`, WS protocol `subscribe/unsubscribe` → push `candle.update` (envelope เดิม) → **pytest 35/35 ✓ ruff ✓ mypy ✓**
-- **Renderer** — Lightweight Charts v5 candlestick + Zustand store, layout สไตล์ TradingView (symbol search + TF selector 11 ตัว บน / toolbar ซ้าย placeholder / chart กลาง / watchlist ขวา grouped ตาม asset class), WS hook re-subscribe เมื่อเปลี่ยน symbol/tf + auto-reconnect → **vitest 12/12 ✓ tsc ✓ eslint ✓**
-- **Smoke จริง**: `npm run dev` → `/markets` 200 (Binance load_markets), `/candles` BTC/USDT 15m 200 (500 แท่ง), WS accepted · สคริปต์ ws_smoke: subscribe 15m ได้ 3 candle.update จริง (close 63373.99) + 10m resampled ts align bucket ✓
+**M2 ที่ทำแล้ว (verify จริงทุกข้อ):**
+- **Indicator engine** (`app/indicators/`) — basic (SMA/EMA/RSI Wilder/MACD/ATR), Zero-Lag EMA (Ehlers public formula), SMC (swing fractals, BOS/CHoCH, FVG, Order Block — public methodology, ทุกไฟล์มี comment อ้าง source ตามกฎ) + registry set "core" + `GET /indicators` — เทสเทียบค่าคำนวณมือครบ
+- **AI layer** (`app/ai/`) — `AIProvider` ABC + `OllamaProvider` (list_models จาก /api/tags = key-gate เทียบเท่า, complete ผ่าน /api/chat format=json), prompt template `ai/prompts/analyze.md`, orchestrator (context: candles+indicators+MTF summary → parse Signal + repair retry 1 ครั้ง + NoSetup → null), signals table (migration v2) + `POST /analyze` + `GET /signals` + `GET /ai/models` → **pytest 63/63 ✓ ruff ✓ mypy ✓**
+- **Renderer** — SignalPanel (model selector จาก /ai/models, ปุ่มวิเคราะห์, signal card entry/SL/TP/RR/confidence/เหตุผล, ปุ่ม Copy + Copy settings + disclaimer), MtfTable (confluence 5m/15m/60m/4h/1D จาก zlema trend + RSI), เส้น entry/SL/TP บน chart → **vitest 17/17 ✓ tsc ✓ eslint ✓**
+- **Live smoke ผ่านจริง**: Ollama qwen3:8b (RTX 2060S 8GB, 100% GPU) → `POST /analyze` BTC/USDT [15m,60m,4h] ได้ Signal จริง (LONG entry 64152.55 SL 63266.6 conf 85% เหตุผลอ้าง ZLEMA/RSI/MACD/OB/ATR) + persist ลง SQLite + `GET /signals` เจอ · UI wiring: `/ai/models` + `/indicators`×5tf + `/markets` + `/candles` = 200 หมดจาก renderer จริง
 
-**M0 (ก่อนหน้า):** engine `/health` `/settings` `/ws` + token auth + SQLite versioned migrations · Electron sidecar lifecycle + vault (safeStorage) · React health card · CI เขียวบน GitHub
+**M1 (ก่อนหน้า):** data layer Binance/ccxt (ThreadedResolver) + TwelveData (BYOK env), resample 10m/45m/1Y (batch+streaming), `/markets` `/candles` + WS subscribe→candle.update, Lightweight Charts v5 UI + Zustand + watchlist/TF selector — smoke จริงผ่าน (candle.update 15m + 10m resampled)
+**M0 (ก่อนหน้า):** engine `/health` `/settings` `/ws` + token auth + SQLite versioned migrations · Electron sidecar lifecycle + vault (safeStorage, ไม่มี getKey IPC) · React health card · CI (ruff+mypy+pytest / eslint+tsc+vitest+build) · Electron ^43, audit 0 vuln
 
-ที่ทำแล้ว (verify จริงทุกข้อ):
-- **engine/** — Python FastAPI: `/health`, `/settings` (GET/PUT), `/ws` (envelope `{type,ts,payload}` + `engine.hello`), token auth (X-Engine-Token / `?token=`), SQLite + versioned SQL migrations → **pytest 16/16 ✓ · ruff ✓ · mypy ✓**
-- **apps/desktop/** — Electron main+preload: spawn sidecar บน port ว่าง + token ต่อ session, poll `/health` (backoff), graceful shutdown, restart จำกัด 3 ครั้ง, vault (safeStorage → `vault.json` encrypted blobs, ไม่มี getKey IPC), IPC: `engine:info`, `vault:setKey/hasKey`, `app:notify`, push `engine:status`
-- **apps/renderer/** — React+Vite+Tailwind v4: health card (เขียว/เหลือง/แดง poll ทุก 3s) → **vitest 6/6 ✓ · tsc ✓ · vite build ✓**
-- **packages/shared-types/** — contract types เขียนมือ (M0) รอเปลี่ยนเป็น openapi-typescript ภายหลัง
-- **CI**: `.github/workflows/ci.yml` (engine: ruff+mypy+pytest · frontend: eslint+tsc+vitest+build)
-- **Smoke test ผ่าน**: `npm run dev` → vite ✓ → electron ✓ → engine spawn ✓ → main poll `/health` 200 ✓ → renderer CORS+poll `/health` 200 ต่อเนื่อง ✓ (= health เขียวใน UI)
-- `npm audit` = 0 vulnerabilities (bump Electron 33→43 เพราะ advisory)
-
-เอกสาร: ราก (`CLAUDE.md`, `MEMORY.md`, `spec.md`, `README.md` + dev quickstart, `LICENSE`) + `docs/` ครบ 6 ไฟล์
+เอกสาร: ราก (`CLAUDE.md`, `MEMORY.md`, `spec.md`, `README.md` + dev quickstart, `LICENSE`) + `docs/` ครบ 6 ไฟล์ · shared-types ยังเขียนมือ (รอ openapi-typescript)
 
 ## Architecture ที่ตกลงไว้ (สรุป — รายละเอียดใน docs/)
 - **Frontend**: Electron + React + TypeScript + Vite + Tailwind + TradingView Lightweight Charts
@@ -59,7 +51,7 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [ ] จะทำ in-app model benchmark (แข่ง winrate จริง) เป็นฟีเจอร์เลยไหม (option, ไม่บล็อก M0)
 
 ## Next
-1. commit M1 + push → CI เขียว (M1 gate)
-2. ผู้ใช้เคาะ open questions (AI_MODELS แนะนำ / in-app benchmark) — บล็อก M2 บางส่วน (ต้องรู้ default model)
-3. M1 ค้าง (ไม่บล็อก M2): ทดสอบ TwelveData กับ key จริง (BYOK UI), OHLCV cache ใน SQLite (`candles_cache`), rate-limit token bucket, MTF confluence table (F3 — ROADMAP วางไว้ M2)
-4. เข้าเฟส **M2 AI Signals**: indicator engine ชุดแรก (Zero-Lag EMA, SMC, EMA/RSI/ATR — public methodology + comment อ้าง source), AIProvider abstraction + Ollama, `/analyze` → Signal JSON, signal panel + markers บน chart
+1. commit M2 + push → CI เขียว (M2 gate)
+2. ผู้ใช้เคาะ open questions (AI_MODELS แนะนำ / in-app benchmark)
+3. งานค้างไม่บล็อก M3: TwelveData ทดสอบกับ key จริง (BYOK UI), OHLCV cache SQLite (`candles_cache`), rate-limit token bucket, SMC markers วาดบน chart (ตอนนี้มีแต่เส้น signal), signal history UI
+4. เข้าเฟส **M3 Simulator + Dashboard + History**: backtest engine (เคาะ lib: backtesting.py vs vectorbt — TDD §1), paper live-sim, stats (winrate/R/expectancy/PF/DD/equity curve), dashboard UI + history table + export CSV/JSON
