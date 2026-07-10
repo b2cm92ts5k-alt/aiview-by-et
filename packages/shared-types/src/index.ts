@@ -106,6 +106,85 @@ export interface IndicatorResult {
   markers: IndicatorMarker[];
 }
 
+export type TradeStatus = "open" | "win" | "loss" | "be" | "timeout";
+
+/** ARCHITECTURE.md §5 Trade schema (mirror of engine Trade) */
+export interface Trade {
+  id: string;
+  signal_id: string;
+  symbol: string;
+  tf: Timeframe;
+  side: Side;
+  entry: number;
+  exit: number | null;
+  sl: number;
+  tp: number;
+  qty: number;
+  pnl: number | null;
+  r_multiple: number | null;
+  status: TradeStatus;
+  model: string;
+  opened_at: number;
+  closed_at: number | null;
+}
+
+export interface SimConfig {
+  initial_capital: number;
+  risk_per_trade_pct: number;
+  fee_pct: number;
+  slippage_pct: number;
+  timeout_bars: number;
+}
+
+export interface EquityPoint {
+  ts: number;
+  equity: number;
+}
+
+export interface StatsBreakdownRow {
+  key: string;
+  trades: number;
+  winrate: number;
+  avg_r: number;
+  pnl: number;
+}
+
+/** ARCHITECTURE.md §5 Stats schema */
+export interface Stats {
+  scope: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  winrate: number;
+  avg_r: number;
+  expectancy: number;
+  profit_factor: number;
+  max_drawdown_pct: number;
+  total_pnl: number;
+  equity_curve: EquityPoint[];
+  by_symbol: StatsBreakdownRow[];
+  by_tf: StatsBreakdownRow[];
+  by_model: StatsBreakdownRow[];
+  by_side: StatsBreakdownRow[];
+}
+
+export interface BacktestRequest {
+  symbol: string;
+  tf: Timeframe;
+  limit: number;
+  strategy: string;
+  config?: Partial<SimConfig>;
+}
+
+export interface BacktestRun {
+  run_id: string;
+  status: "running" | "done" | "error";
+  progress: number;
+  detail: string | null;
+  trades: Trade[] | null;
+  stats: Stats | null;
+}
+
 /** Engine lifecycle status pushed from Electron main to renderer */
 export type EngineStatus =
   | { state: "starting" }

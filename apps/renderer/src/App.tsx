@@ -2,6 +2,7 @@ import type { Signal, SymbolInfo } from "@aiview/shared-types";
 import { useEffect, useState } from "react";
 import { fetchMarkets, getEngineInfo } from "./api/engine";
 import Chart from "./components/Chart";
+import Dashboard from "./components/Dashboard";
 import HealthBadge from "./components/HealthBadge";
 import MtfTable from "./components/MtfTable";
 import SignalPanel from "./components/SignalPanel";
@@ -10,6 +11,8 @@ import TimeframeSelector from "./components/TimeframeSelector";
 import Watchlist from "./components/Watchlist";
 import { useAppStore } from "./store/app";
 
+type View = "chart" | "dashboard";
+
 // left toolbar: M1 placeholder — drawing tools มาเฟสหลัง (FEATURES §F5)
 const TOOLBAR_ICONS = ["✛", "─", "▭", "⟋", "𝑓", "⚙"];
 
@@ -17,6 +20,7 @@ export default function App() {
   const { engineInfo, symbol, tf, setEngineInfo, setSymbol, setTf } = useAppStore();
   const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
   const [signal, setSignal] = useState<Signal | null>(null);
+  const [view, setView] = useState<View>("chart");
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +63,19 @@ export default function App() {
         </div>
         <SymbolSearch symbols={symbols} value={symbol} onSelect={setSymbol} />
         <TimeframeSelector value={tf} onChange={setTf} />
+        <div className="flex rounded border border-slate-700 text-xs" data-testid="view-tabs">
+          {(["chart", "dashboard"] as View[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-3 py-1 ${
+                view === v ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:bg-slate-800"
+              }`}
+            >
+              {v === "chart" ? "Chart" : "Dashboard"}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex items-center gap-4">
           <span className="text-sm font-semibold text-slate-200">{symbol}</span>
           <HealthBadge info={engineInfo} />
@@ -66,32 +83,40 @@ export default function App() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {/* left toolbar (placeholder M1) */}
-        <aside className="flex w-11 flex-col items-center gap-1 border-r border-slate-800 py-2">
-          {TOOLBAR_ICONS.map((icon, i) => (
-            <button
-              key={i}
-              className="flex h-8 w-8 items-center justify-center rounded text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-200"
-              title="เครื่องมือ (เฟสถัดไป)"
-            >
-              {icon}
-            </button>
-          ))}
-        </aside>
+        {view === "chart" ? (
+          <>
+            {/* left toolbar (placeholder M1) */}
+            <aside className="flex w-11 flex-col items-center gap-1 border-r border-slate-800 py-2">
+              {TOOLBAR_ICONS.map((icon, i) => (
+                <button
+                  key={i}
+                  className="flex h-8 w-8 items-center justify-center rounded text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+                  title="เครื่องมือ (เฟสถัดไป)"
+                >
+                  {icon}
+                </button>
+              ))}
+            </aside>
 
-        {/* chart */}
-        <main className="min-w-0 flex-1">
-          <Chart info={engineInfo} symbol={symbol} tf={tf} signal={signal} />
-        </main>
+            {/* chart */}
+            <main className="min-w-0 flex-1">
+              <Chart info={engineInfo} symbol={symbol} tf={tf} signal={signal} />
+            </main>
 
-        {/* right panel */}
-        <aside className="flex w-72 flex-col overflow-y-auto border-l border-slate-800">
-          <SignalPanel info={engineInfo} symbol={symbol} tf={tf} onSignal={setSignal} />
-          <MtfTable info={engineInfo} symbol={symbol} />
-          <div className="min-h-0 flex-1">
-            <Watchlist symbols={symbols} active={symbol} onSelect={setSymbol} />
-          </div>
-        </aside>
+            {/* right panel */}
+            <aside className="flex w-72 flex-col overflow-y-auto border-l border-slate-800">
+              <SignalPanel info={engineInfo} symbol={symbol} tf={tf} onSignal={setSignal} />
+              <MtfTable info={engineInfo} symbol={symbol} />
+              <div className="min-h-0 flex-1">
+                <Watchlist symbols={symbols} active={symbol} onSelect={setSymbol} />
+              </div>
+            </aside>
+          </>
+        ) : (
+          <main className="min-w-0 flex-1">
+            <Dashboard info={engineInfo} symbol={symbol} tf={tf} />
+          </main>
+        )}
       </div>
     </div>
   );

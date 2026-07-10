@@ -36,6 +36,31 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals (symbol, created_at DESC);
         """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE IF NOT EXISTS trades (
+            id        TEXT PRIMARY KEY,
+            signal_id TEXT NOT NULL,
+            symbol    TEXT NOT NULL,
+            tf        TEXT NOT NULL,
+            source    TEXT NOT NULL,            -- 'backtest' | 'paper'
+            run_id    TEXT,                     -- backtest run (NULL สำหรับ paper)
+            status    TEXT NOT NULL,
+            opened_at INTEGER NOT NULL,
+            closed_at INTEGER,
+            payload   TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_trades_source ON trades (source, opened_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_trades_run ON trades (run_id);
+        CREATE TABLE IF NOT EXISTS sim_runs (
+            id         TEXT PRIMARY KEY,
+            created_at INTEGER NOT NULL,
+            request    TEXT NOT NULL,
+            summary    TEXT
+        );
+        """,
+    ),
 ]
 
 SCHEMA_VERSION = MIGRATIONS[-1][0]
@@ -87,6 +112,51 @@ def list_signals(conn: sqlite3.Connection, symbol: str | None = None,
             "SELECT payload FROM signals ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
     return [json.loads(r["payload"]) for r in rows]
+
+
+def save_trade(conn: sqlite3.Connection, trade: dict[str, Any], source: str,
+               run_id: str | None = None) -> None:
+    conn.execute(
+        "INSERT INTO trades (id, signal_id, symbol, tf, source, run_id, status, "
+        "opened_at, closed_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET status = excluded.status, "
+        "closed_at = excluded.closed_at, payload = excluded.payload",
+        (trade["id"], trade["signal_id"], trade["symbol"], trade["tf"], source, run_id,
+         trade["status"], trade["opened_at"], trade.get("closed_at"), json.dumps(trade)),
+    )
+    conn.commit()
+
+
+def list_trades(conn: sqlite3.Connection, source: str | None = None,
+                symbol: str | None = None, run_id: str | None = None,
+                limit: int = 500) -> list[dict[str, Any]]:
+    where, params = [], []
+    if source:
+        where.append("source = ?")
+        params.append(source)
+    if symbol:
+        where.append("symbol = ?")
+        params.append(symbol)
+    if run_id:
+        where.append("run_id = ?")
+        params.append(run_id)
+    sql = "SELECT payload FROM trades"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY opened_at DESC LIMIT ?"
+    rows = conn.execute(sql, (*params, limit)).fetchall()
+    return [json.loads(r["payload"]) for r in rows]
+
+
+def save_sim_run(conn: sqlite3.Connection, run_id: str, created_at: int,
+                 request: dict[str, Any], summary: dict[str, Any] | None) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO sim_runs (id, created_at, request, summary) "
+        "VALUES (?, ?, ?, ?)",
+        (run_id, created_at, json.dumps(request),
+         json.dumps(summary) if summary else None),
+    )
+    conn.commit()
 
 
 def put_settings(conn: sqlite3.Connection, patch: dict[str, Any]) -> dict[str, Any]:

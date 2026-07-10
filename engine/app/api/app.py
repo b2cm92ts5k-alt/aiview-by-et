@@ -24,7 +24,21 @@ from app.ai.base import AIProvider
 from app.data.service import DataService
 from app.indicators.base import IndicatorResult, candles_to_df
 from app.indicators.registry import SETS
-from app.models import AnalyzeRequest, Candle, MarketsResponse, Signal, Timeframe
+from app.models import (
+    AnalyzeRequest,
+    BacktestRequest,
+    BacktestRun,
+    Candle,
+    MarketsResponse,
+    Signal,
+    SimConfig,
+    Stats,
+    Timeframe,
+    Trade,
+)
+from app.sim import backtest as bt
+from app.sim.paper import PaperEngine
+from app.sim.stats import compute_stats
 from app.store import db
 
 HEALTH_PATH = "/health"
@@ -60,9 +74,23 @@ def create_app(
     service = data_service or build_default_service()
     ai = ai_providers if ai_providers is not None else build_default_ai_providers()
 
+    ws_clients: set[WebSocket] = set()
+
+    async def broadcast(type_: str, payload: dict[str, Any]) -> None:
+        msg = _envelope(type_, payload)
+        for client in list(ws_clients):
+            try:
+                await client.send_json(msg)
+            except Exception:
+                ws_clients.discard(client)
+
+    paper = PaperEngine(service, conn, broadcast)
+    runs = bt.RunRegistry()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
+        await paper.close()
         await service.close()
         for p in ai.values():
             await p.close()
@@ -157,6 +185,9 @@ def create_app(
             raise HTTPException(status_code=502, detail=f"AI response invalid: {e}") from e
         db.save_signal(conn, signal.id, signal.symbol, signal.tf,
                        signal.created_at, signal.model_dump())
+        await broadcast("signal.new", signal.model_dump())
+        # ARCHITECTURE data flow 6b: signal ใหม่ → simulator เปิดไม้จำลองทันที
+        await paper.open_from_signal(signal)
         return signal
 
     @app.get("/signals")
@@ -164,12 +195,60 @@ def create_app(
                 ) -> list[Signal]:
         return [Signal(**p) for p in db.list_signals(conn, symbol, limit)]
 
+    @app.post("/sim/backtest")
+    async def sim_backtest(req: BacktestRequest) -> dict[str, str]:
+        run_id = runs.create()
+
+        async def execute() -> None:
+            try:
+                candles = await service.candles(req.symbol, req.tf, limit=req.limit)
+                trades, stats = bt.run_backtest(candles, req.config, req.strategy)
+                for t in trades:
+                    db.save_trade(conn, t.model_dump(), source="backtest", run_id=run_id)
+                db.save_sim_run(conn, run_id, int(time.time() * 1000),
+                                req.model_dump(), stats.model_dump(exclude={"equity_curve"}))
+                runs.finish(run_id, trades, stats)
+                await broadcast("sim.progress", {"run_id": run_id, "status": "done"})
+            except Exception as e:
+                runs.fail(run_id, str(e))
+                await broadcast("sim.progress", {"run_id": run_id, "status": "error",
+                                                 "detail": str(e)})
+
+        asyncio.create_task(execute())
+        return {"run_id": run_id}
+
+    @app.get("/sim/runs/{run_id}")
+    def sim_run(run_id: str) -> BacktestRun:
+        run = runs.get(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
+        return run
+
+    @app.get("/trades")
+    def trades(
+        scope: str | None = Query(default=None, pattern="^(backtest|paper)$"),
+        symbol: str | None = None,
+        run_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=5000),
+    ) -> list[Trade]:
+        return [Trade(**t) for t in db.list_trades(conn, scope, symbol, run_id, limit)]
+
+    @app.get("/stats")
+    def stats(
+        scope: str | None = Query(default=None, pattern="^(backtest|paper)$"),
+        symbol: str | None = None,
+        run_id: str | None = None,
+    ) -> Stats:
+        rows = [Trade(**t) for t in db.list_trades(conn, scope, symbol, run_id, limit=5000)]
+        return compute_stats(rows, SimConfig(), scope=scope or "all")
+
     @app.websocket("/ws")
     async def ws(websocket: WebSocket) -> None:
         if token and websocket.query_params.get("token") != token:
             await websocket.close(code=4401)
             return
         await websocket.accept()
+        ws_clients.add(websocket)
         await websocket.send_json(_envelope("engine.hello", {"version": __version__}))
 
         stream_task: asyncio.Task[None] | None = None
@@ -210,6 +289,7 @@ def create_app(
         except WebSocketDisconnect:
             pass
         finally:
+            ws_clients.discard(websocket)
             stop_stream()
 
     return app

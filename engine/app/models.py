@@ -70,3 +70,87 @@ class AnalyzeRequest(BaseModel):
     tfs: list[Timeframe] = ["15m", "60m", "4h"]  # first = primary
     provider: str = "ollama"
     model: str
+
+
+TradeStatus = Literal["open", "win", "loss", "be", "timeout"]
+
+
+class Trade(BaseModel):
+    """ARCHITECTURE.md §5 Trade schema."""
+
+    id: str
+    signal_id: str
+    symbol: str
+    tf: Timeframe
+    side: Side
+    entry: float
+    exit: float | None = None
+    sl: float
+    tp: float  # TP1 — fill model v1 exits ทั้งไม้ที่ TP1 (spec.md Decisions 2026-07-10)
+    qty: float
+    pnl: float | None = None
+    r_multiple: float | None = None
+    status: TradeStatus = "open"
+    model: str  # AI model ที่ออก signal (สำหรับ breakdown per-model)
+    opened_at: int
+    closed_at: int | None = None
+
+
+class SimConfig(BaseModel):
+    """ค่าจำลองการเทรด (F2) — ทั้งหมดผู้ใช้ปรับได้ ห้าม hardcode ในโค้ด."""
+
+    initial_capital: float = 10_000.0
+    risk_per_trade_pct: float = 1.0  # % ของทุนตั้งต้น (non-compounding)
+    fee_pct: float = 0.04  # taker fee ต่อขา (%)
+    slippage_pct: float = 0.01  # ต่อขา (%)
+    timeout_bars: int = 96  # ปิดไม้ถ้าไม่ชน SL/TP ภายใน N แท่ง
+
+
+class EquityPoint(BaseModel):
+    ts: int
+    equity: float
+
+
+class StatsBreakdownRow(BaseModel):
+    key: str  # เช่น "BTC/USDT", "15m", "qwen3:8b", "long"
+    trades: int
+    winrate: float
+    avg_r: float
+    pnl: float
+
+
+class Stats(BaseModel):
+    """ARCHITECTURE.md §5 Stats schema."""
+
+    scope: str
+    trades: int
+    wins: int
+    losses: int
+    winrate: float  # 0-100
+    avg_r: float
+    expectancy: float  # avg R ต่อไม้ (รวมแพ้ชนะ)
+    profit_factor: float
+    max_drawdown_pct: float
+    total_pnl: float
+    equity_curve: list[EquityPoint]
+    by_symbol: list[StatsBreakdownRow] = []
+    by_tf: list[StatsBreakdownRow] = []
+    by_model: list[StatsBreakdownRow] = []
+    by_side: list[StatsBreakdownRow] = []
+
+
+class BacktestRequest(BaseModel):
+    symbol: str
+    tf: Timeframe = "15m"
+    limit: int = 1000  # จำนวนแท่ง historical
+    strategy: str = "zlema-smc"
+    config: SimConfig = SimConfig()
+
+
+class BacktestRun(BaseModel):
+    run_id: str
+    status: Literal["running", "done", "error"]
+    progress: float  # 0-1
+    detail: str | None = None
+    trades: list[Trade] | None = None
+    stats: Stats | None = None

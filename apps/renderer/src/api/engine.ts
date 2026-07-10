@@ -1,12 +1,16 @@
 import type {
   AnalyzeRequest,
+  BacktestRequest,
+  BacktestRun,
   Candle,
   EngineInfo,
   HealthResponse,
   IndicatorResult,
   MarketsResponse,
   Signal,
+  Stats,
   Timeframe,
+  Trade,
 } from "@aiview/shared-types";
 
 export async function getEngineInfo(): Promise<EngineInfo | null> {
@@ -69,6 +73,45 @@ export function fetchIndicators(
 
 export function fetchAiModels(info: EngineInfo): Promise<Record<string, string[]>> {
   return get<Record<string, string[]>>(info, "/ai/models");
+}
+
+export async function postBacktest(
+  info: EngineInfo,
+  req: BacktestRequest,
+): Promise<{ run_id: string }> {
+  const res = await fetch(`${base(info)}/sim/backtest`, {
+    method: "POST",
+    headers: { ...headers(info), "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`backtest failed: HTTP ${res.status}`);
+  return (await res.json()) as { run_id: string };
+}
+
+export function fetchRun(info: EngineInfo, runId: string): Promise<BacktestRun> {
+  return get<BacktestRun>(info, `/sim/runs/${runId}`);
+}
+
+export function fetchTrades(
+  info: EngineInfo,
+  scope?: "backtest" | "paper",
+  runId?: string,
+): Promise<Trade[]> {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (runId) params.set("run_id", runId);
+  return get<Trade[]>(info, `/trades?${params}`);
+}
+
+export function fetchStats(
+  info: EngineInfo,
+  scope?: "backtest" | "paper",
+  runId?: string,
+): Promise<Stats> {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (runId) params.set("run_id", runId);
+  return get<Stats>(info, `/stats?${params}`);
 }
 
 /** null = AI เห็นว่าไม่มี setup ตอนนี้ */
