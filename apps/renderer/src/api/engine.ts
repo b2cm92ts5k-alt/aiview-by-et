@@ -4,7 +4,9 @@ import type {
   BacktestRun,
   Candle,
   EngineInfo,
+  GenerateIndicatorResponse,
   HealthResponse,
+  IndicatorDef,
   IndicatorResult,
   MarketsResponse,
   Signal,
@@ -112,6 +114,50 @@ export function fetchStats(
   if (scope) params.set("scope", scope);
   if (runId) params.set("run_id", runId);
   return get<Stats>(info, `/stats?${params}`);
+}
+
+async function post<T>(info: EngineInfo, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${base(info)}${path}`, {
+    method: "POST",
+    headers: { ...headers(info), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* keep http status */
+    }
+    throw new Error(detail);
+  }
+  return (await res.json()) as T;
+}
+
+export function generateIndicator(
+  info: EngineInfo,
+  req: { description: string; provider: string; model: string; symbol?: string; tf?: Timeframe },
+): Promise<GenerateIndicatorResponse> {
+  return post<GenerateIndicatorResponse>(info, "/indicators/ai/generate", req);
+}
+
+export function saveIndicatorDef(
+  info: EngineInfo,
+  def: IndicatorDef,
+): Promise<{ name: string }> {
+  return post<{ name: string }>(info, "/indicators/defs", def);
+}
+
+export function listIndicatorDefs(info: EngineInfo): Promise<IndicatorDef[]> {
+  return get<IndicatorDef[]>(info, "/indicators/defs");
+}
+
+export async function deleteIndicatorDef(info: EngineInfo, name: string): Promise<void> {
+  const res = await fetch(`${base(info)}/indicators/defs/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+    headers: headers(info),
+  });
+  if (!res.ok) throw new Error(`delete failed: HTTP ${res.status}`);
 }
 
 /** null = AI เห็นว่าไม่มี setup ตอนนี้ */

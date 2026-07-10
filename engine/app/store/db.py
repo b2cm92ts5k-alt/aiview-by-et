@@ -61,6 +61,16 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         """,
     ),
+    (
+        4,
+        """
+        CREATE TABLE IF NOT EXISTS indicator_defs (
+            name       TEXT PRIMARY KEY,
+            created_at INTEGER NOT NULL,
+            payload    TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 SCHEMA_VERSION = MIGRATIONS[-1][0]
@@ -146,6 +156,33 @@ def list_trades(conn: sqlite3.Connection, source: str | None = None,
     sql += " ORDER BY opened_at DESC LIMIT ?"
     rows = conn.execute(sql, (*params, limit)).fetchall()
     return [json.loads(r["payload"]) for r in rows]
+
+
+def save_indicator_def(conn: sqlite3.Connection, name: str, created_at: int,
+                       payload: dict[str, Any]) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO indicator_defs (name, created_at, payload) VALUES (?, ?, ?)",
+        (name, created_at, json.dumps(payload)),
+    )
+    conn.commit()
+
+
+def get_indicator_def(conn: sqlite3.Connection, name: str) -> dict[str, Any] | None:
+    row = conn.execute("SELECT payload FROM indicator_defs WHERE name = ?", (name,)).fetchone()
+    return json.loads(row["payload"]) if row else None
+
+
+def list_indicator_defs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT payload FROM indicator_defs ORDER BY created_at DESC"
+    ).fetchall()
+    return [json.loads(r["payload"]) for r in rows]
+
+
+def delete_indicator_def(conn: sqlite3.Connection, name: str) -> bool:
+    cur = conn.execute("DELETE FROM indicator_defs WHERE name = ?", (name,))
+    conn.commit()
+    return cur.rowcount > 0
 
 
 def save_sim_run(conn: sqlite3.Connection, run_id: str, created_at: int,

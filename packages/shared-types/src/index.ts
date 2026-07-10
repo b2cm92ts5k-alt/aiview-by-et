@@ -185,6 +185,24 @@ export interface BacktestRun {
   stats: Stats | null;
 }
 
+/** F6 — AI-generated indicator definition (safe DSL config, not code) */
+export interface IndicatorDef {
+  name: string;
+  title: string;
+  description: string;
+  source: string;
+  params: Record<string, number>;
+  lines: Record<string, string>;
+  long_when?: string | null;
+  short_when?: string | null;
+}
+
+/** POST /indicators/ai/generate response */
+export interface GenerateIndicatorResponse {
+  definition: IndicatorDef;
+  backtest: Stats | null;
+}
+
 /** Engine lifecycle status pushed from Electron main to renderer */
 export type EngineStatus =
   | { state: "starting" }

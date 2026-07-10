@@ -4,6 +4,7 @@ import { fetchMarkets, getEngineInfo } from "./api/engine";
 import Chart from "./components/Chart";
 import Dashboard from "./components/Dashboard";
 import HealthBadge from "./components/HealthBadge";
+import IndicatorBuilder from "./components/IndicatorBuilder";
 import MtfTable from "./components/MtfTable";
 import SignalPanel from "./components/SignalPanel";
 import SymbolSearch from "./components/SymbolSearch";
@@ -11,13 +12,19 @@ import TimeframeSelector from "./components/TimeframeSelector";
 import Watchlist from "./components/Watchlist";
 import { useAppStore } from "./store/app";
 
-type View = "chart" | "dashboard";
+type View = "chart" | "dashboard" | "builder";
+
+const VIEW_LABEL: Record<View, string> = {
+  chart: "Chart",
+  dashboard: "Dashboard",
+  builder: "Indicator AI",
+};
 
 // left toolbar: M1 placeholder — drawing tools มาเฟสหลัง (FEATURES §F5)
 const TOOLBAR_ICONS = ["✛", "─", "▭", "⟋", "𝑓", "⚙"];
 
 export default function App() {
-  const { engineInfo, symbol, tf, setEngineInfo, setSymbol, setTf } = useAppStore();
+  const { engineInfo, symbol, tf, overlaySet, setEngineInfo, setSymbol, setTf } = useAppStore();
   const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
   const [signal, setSignal] = useState<Signal | null>(null);
   const [view, setView] = useState<View>("chart");
@@ -64,7 +71,7 @@ export default function App() {
         <SymbolSearch symbols={symbols} value={symbol} onSelect={setSymbol} />
         <TimeframeSelector value={tf} onChange={setTf} />
         <div className="flex rounded border border-slate-700 text-xs" data-testid="view-tabs">
-          {(["chart", "dashboard"] as View[]).map((v) => (
+          {(["chart", "dashboard", "builder"] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -72,7 +79,7 @@ export default function App() {
                 view === v ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:bg-slate-800"
               }`}
             >
-              {v === "chart" ? "Chart" : "Dashboard"}
+              {VIEW_LABEL[v]}
             </button>
           ))}
         </div>
@@ -100,7 +107,13 @@ export default function App() {
 
             {/* chart */}
             <main className="min-w-0 flex-1">
-              <Chart info={engineInfo} symbol={symbol} tf={tf} signal={signal} />
+              <Chart
+                info={engineInfo}
+                symbol={symbol}
+                tf={tf}
+                signal={signal}
+                overlaySet={overlaySet}
+              />
             </main>
 
             {/* right panel */}
@@ -112,9 +125,13 @@ export default function App() {
               </div>
             </aside>
           </>
-        ) : (
+        ) : view === "dashboard" ? (
           <main className="min-w-0 flex-1">
             <Dashboard info={engineInfo} symbol={symbol} tf={tf} />
+          </main>
+        ) : (
+          <main className="min-w-0 flex-1">
+            <IndicatorBuilder info={engineInfo} />
           </main>
         )}
       </div>

@@ -11,10 +11,14 @@ TP1/TP2 = RR 1.5 / 2.5 จากระยะ SL.
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from app.indicators.base import candles_to_df
+
+if TYPE_CHECKING:
+    from app.indicators.dsl import IndicatorDef
 from app.indicators.basic import atr
 from app.indicators.smc import structure_markers, swing_points
 from app.indicators.zero_lag import zlema_trend
@@ -95,6 +99,52 @@ def generate_signals(candles: list[Candle], strategy: str = "zlema-smc") -> list
             model=f"rule:{strategy}",
             created_at=ts,
         ))
+    return signals
+
+
+def generate_signals_from_def(candles: list[Candle], definition: IndicatorDef
+                              ) -> list[Signal]:
+    """สร้าง signals จาก custom IndicatorDef (F6): bar ที่ signal_long/short = 1
+    → entry ที่ close, SL = ATR×1.5, TP = RR 1.5/2.5 (โครงเดียวกับ rule strategy)."""
+    from app.indicators.dsl import compute_def
+
+    if len(candles) <= WARMUP_BARS:
+        return []
+    df = candles_to_df(candles)
+    result = compute_def(df, definition)
+    atr14 = atr(df["h"], df["l"], df["c"], 14)
+    ts_arr = df["ts"].to_numpy()
+
+    signals: list[Signal] = []
+    for label, sign in (("signal_long", 1), ("signal_short", -1)):
+        values = result.lines.get(label)
+        if not values:
+            continue
+        for i in range(WARMUP_BARS, len(df)):
+            if not values[i]:
+                continue
+            close = float(df["c"].iloc[i])
+            a = float(atr14.iloc[i]) if not pd.isna(atr14.iloc[i]) else 0.0
+            if a <= 0:
+                continue
+            sl = close - sign * a * ATR_SL_MULT
+            risk = abs(close - sl)
+            signals.append(Signal(
+                id=str(uuid.uuid4()),
+                symbol=candles[0].symbol,
+                tf=candles[0].tf,
+                side="long" if sign == 1 else "short",
+                entry=close,
+                sl=sl,
+                tp=[close + sign * risk * rr for rr in RR_TP],
+                rr=RR_TP[0],
+                confidence=0,
+                reason=f"custom:{definition.name} {label}",
+                indicators_used={definition.name: label},
+                model=f"custom:{definition.name}",
+                created_at=int(ts_arr[i]),
+            ))
+    signals.sort(key=lambda s: s.created_at)
     return signals
 
 

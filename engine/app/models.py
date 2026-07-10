@@ -72,6 +72,16 @@ class AnalyzeRequest(BaseModel):
     model: str
 
 
+class GenerateIndicatorRequest(BaseModel):
+    """POST /indicators/ai/generate (F6)."""
+
+    description: str
+    provider: str = "ollama"
+    model: str
+    symbol: str = "BTC/USDT"  # sample data สำหรับ validate + quick backtest
+    tf: Timeframe = "15m"
+
+
 TradeStatus = Literal["open", "win", "loss", "be", "timeout"]
 
 

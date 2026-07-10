@@ -19,16 +19,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.ai import orchestrator
+from app.ai import indicator_gen, orchestrator
 from app.ai.base import AIProvider
 from app.data.service import DataService
 from app.indicators.base import IndicatorResult, candles_to_df
+from app.indicators.dsl import DslError, IndicatorDef, compute_def
 from app.indicators.registry import SETS
 from app.models import (
     AnalyzeRequest,
     BacktestRequest,
     BacktestRun,
     Candle,
+    GenerateIndicatorRequest,
     MarketsResponse,
     Signal,
     SimConfig,
@@ -152,13 +154,24 @@ def create_app(
         limit: int = Query(default=500, ge=50, le=5000),
     ) -> list[IndicatorResult]:
         compute = SETS.get(set)
+        custom: IndicatorDef | None = None
         if compute is None:
-            raise HTTPException(status_code=404, detail=f"unknown indicator set: {set}")
+            payload = db.get_indicator_def(conn, set)
+            if payload is None:
+                raise HTTPException(status_code=404, detail=f"unknown indicator set: {set}")
+            custom = IndicatorDef(**payload)
         try:
             data = await service.candles(symbol, tf, limit=limit)
         except KeyError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
-        return compute(candles_to_df(data))
+        df = candles_to_df(data)
+        if custom is not None:
+            try:
+                return [compute_def(df, custom)]
+            except DslError as e:
+                raise HTTPException(status_code=422, detail=str(e)) from e
+        assert compute is not None
+        return compute(df)
 
     @app.get("/ai/models")
     async def ai_models(provider: str | None = None) -> dict[str, list[str]]:
@@ -197,12 +210,27 @@ def create_app(
 
     @app.post("/sim/backtest")
     async def sim_backtest(req: BacktestRequest) -> dict[str, str]:
+        # strategy "custom:<name>" = ใช้ IndicatorDef ที่ save ไว้ (F6)
+        custom_def: IndicatorDef | None = None
+        if req.strategy.startswith("custom:"):
+            payload = db.get_indicator_def(conn, req.strategy.removeprefix("custom:"))
+            if payload is None:
+                raise HTTPException(status_code=404,
+                                    detail=f"unknown custom indicator: {req.strategy}")
+            custom_def = IndicatorDef(**payload)
+
         run_id = runs.create()
 
         async def execute() -> None:
             try:
                 candles = await service.candles(req.symbol, req.tf, limit=req.limit)
-                trades, stats = bt.run_backtest(candles, req.config, req.strategy)
+                if custom_def is not None:
+                    from app.sim.strategy import generate_signals_from_def
+
+                    signals = generate_signals_from_def(candles, custom_def)
+                    trades, stats = bt.run_backtest(candles, req.config, signals=signals)
+                else:
+                    trades, stats = bt.run_backtest(candles, req.config, req.strategy)
                 for t in trades:
                     db.save_trade(conn, t.model_dump(), source="backtest", run_id=run_id)
                 db.save_sim_run(conn, run_id, int(time.time() * 1000),
@@ -216,6 +244,58 @@ def create_app(
 
         asyncio.create_task(execute())
         return {"run_id": run_id}
+
+    @app.post("/indicators/ai/generate")
+    async def generate_indicator(req: GenerateIndicatorRequest) -> dict[str, Any]:
+        """describe → AI generate DSL → validate บนแท่งจริง → quick backtest (F6)."""
+        provider = ai.get(req.provider)
+        if provider is None:
+            raise HTTPException(status_code=404, detail=f"unknown AI provider: {req.provider}")
+        try:
+            candles = await service.candles(req.symbol, req.tf, limit=500)
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        sample = candles_to_df(candles)
+        try:
+            definition = await indicator_gen.generate(provider, req.model,
+                                                      req.description, sample)
+        except indicator_gen.GenerationRefused as e:
+            raise HTTPException(status_code=422, detail=f"AI ปฏิเสธ: {e}") from e
+        except indicator_gen.GenerationError as e:
+            raise HTTPException(status_code=502, detail=f"AI definition invalid: {e}") from e
+
+        stats: Stats | None = None
+        if definition.long_when or definition.short_when:
+            from app.sim.strategy import generate_signals_from_def
+
+            signals = generate_signals_from_def(candles, definition)
+            _, stats = bt.run_backtest(candles, SimConfig(), signals=signals)
+        return {"definition": definition.model_dump(),
+                "backtest": stats.model_dump() if stats else None}
+
+    @app.post("/indicators/defs")
+    async def save_indicator(definition: IndicatorDef) -> dict[str, str]:
+        # validate อีกครั้งก่อน save — def ต้องรันได้จริงเสมอ
+        try:
+            candles = await service.candles("BTC/USDT", "15m", limit=200)
+            compute_def(candles_to_df(candles), definition)
+        except DslError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        except KeyError:
+            pass  # ไม่มี sample symbol — ยอม save (schema ผ่านแล้ว)
+        db.save_indicator_def(conn, definition.name, int(time.time() * 1000),
+                              definition.model_dump())
+        return {"name": definition.name}
+
+    @app.get("/indicators/defs")
+    def list_indicator_defs() -> list[IndicatorDef]:
+        return [IndicatorDef(**p) for p in db.list_indicator_defs(conn)]
+
+    @app.delete("/indicators/defs/{name}")
+    def delete_indicator(name: str) -> dict[str, bool]:
+        if not db.delete_indicator_def(conn, name):
+            raise HTTPException(status_code=404, detail=f"unknown indicator: {name}")
+        return {"deleted": True}
 
     @app.get("/sim/runs/{run_id}")
     def sim_run(run_id: str) -> BacktestRun:

@@ -1,6 +1,7 @@
 import type { Candle, EngineInfo, Signal, Timeframe } from "@aiview/shared-types";
 import {
   CandlestickSeries,
+  LineSeries,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -8,8 +9,10 @@ import {
   createChart,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import { fetchCandles } from "../api/engine";
+import { fetchCandles, fetchIndicators } from "../api/engine";
 import { useCandleStream } from "../hooks/useCandleStream";
+
+const OVERLAY_COLORS = ["#f59e0b", "#a78bfa", "#34d399", "#f472b6", "#60a5fa"];
 
 const DARK = {
   layout: { background: { color: "#0b0e14" }, textColor: "#8b94a7" },
@@ -46,16 +49,19 @@ export default function Chart({
   symbol,
   tf,
   signal = null,
+  overlaySet = null,
 }: {
   info: EngineInfo | null;
   symbol: string;
   tf: Timeframe;
   signal?: Signal | null;
+  overlaySet?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
+  const overlaySeriesRef = useRef<ISeriesApi<"Line">[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,6 +95,49 @@ export default function Chart({
       cancelled = true;
     };
   }, [info, symbol, tf]);
+
+  // custom indicator overlay (F6): วาด line ทุกเส้นของ def (ข้าม signal_*)
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    for (const s of overlaySeriesRef.current) chart.removeSeries(s);
+    overlaySeriesRef.current = [];
+    if (!info || !overlaySet) return;
+
+    let cancelled = false;
+    Promise.all([
+      fetchIndicators(info, symbol, tf, overlaySet),
+      fetchCandles(info, symbol, tf),
+    ])
+      .then(([results, candles]) => {
+        if (cancelled || !chartRef.current) return;
+        const lines = results[0]?.lines ?? {};
+        let color = 0;
+        for (const [name, values] of Object.entries(lines)) {
+          if (name.startsWith("signal_")) continue;
+          const series = chartRef.current.addSeries(LineSeries, {
+            color: OVERLAY_COLORS[color % OVERLAY_COLORS.length],
+            lineWidth: 1,
+            title: name,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          series.setData(
+            candles
+              .map((candle, i) => ({ time: (candle.ts / 1000) as UTCTimestamp, value: values[i] }))
+              .filter((p): p is { time: UTCTimestamp; value: number } => p.value !== null),
+          );
+          overlaySeriesRef.current.push(series);
+          color += 1;
+        }
+      })
+      .catch(() => {
+        /* overlay ล้มเหลวไม่บล็อก chart หลัก */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [info, symbol, tf, overlaySet]);
 
   // signal overlay: เส้น entry/SL/TP (F1)
   useEffect(() => {

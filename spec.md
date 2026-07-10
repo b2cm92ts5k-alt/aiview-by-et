@@ -9,15 +9,16 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M3 Simulator + Dashboard + History — เสร็จ + ปิด gate แล้ว [2026-07-10] (CI เขียวที่ dc49b37 — M0–M3 ปิดครบ)**
+**🟢 M4 Indicator-AI Builder — เสร็จ [2026-07-10] (live smoke ผ่าน — รอ CI เขียวปิด gate)**
 
-**M3 ที่ทำแล้ว (verify จริงทุกข้อ):**
-- **Sim core** (`app/sim/`) — `fill.py` (fill model ตาม Decisions: slippage/fee ต่อขา, SL-first เมื่อชนทั้งคู่, TP1 เต็มไม้, timeout, BE epsilon 0.05R, sizing risk% ของทุนตั้งต้น), `stats.py` (winrate/avgR/expectancy/PF/maxDD/equity curve + breakdown symbol/tf/model/side), `strategy.py` (rule "zlema-smc" — proxy เชิงกติกาไว้ backtest โดยไม่ยิง LLM รายแท่ง), `backtest.py` (replay signals หรือ rule + `RunRegistry` async)
-- **Paper live-sim** (`sim/paper.py`) — signal จาก `/analyze` เปิดไม้จำลองอัตโนมัติ (ARCHITECTURE flow 6b) ติดตาม stream จนชน SL/TP/timeout + WS broadcast `signal.new`/`trade.update`
-- **Storage v3**: ตาราง `trades` (source backtest/paper + run_id) + `sim_runs` · **Endpoints**: `POST /sim/backtest` (async), `GET /sim/runs/{id}`, `GET /trades?scope&run_id`, `GET /stats?scope` → **pytest 86/86 ✓ ruff ✓ mypy ✓**
-- **Dashboard UI** — view switcher Chart/Dashboard, stats cards 6 ใบ, equity curve (lightweight-charts line), breakdown ตาม model/tf/side, History table รายไม้ + Export CSV/JSON, ปุ่มรัน backtest + poll run → **vitest 23/23 ✓ tsc ✓ eslint ✓**
-- **Live smoke ผ่านจริง**: backtest BTC/USDT 15m 1000 แท่ง (data Binance จริง) → 86 ไม้ปิด, winrate 37.21%, PF 0.61, maxDD 29.9%, equity curve 86 จุด, persist + query กลับได้ครบ (ตัวเลขติดลบ = rule proxy ยังไม่ tune — สอดคล้อง pillar "Prove It")
-- หมายเหตุ: ยังไม่ได้คลิก UI Dashboard ในแอพจริง (ไม่มี interactive driver) — data flow ครอบด้วย vitest + endpoint live ครบ
+**M4 ที่ทำแล้ว:**
+- **DSL** (`app/indicators/dsl.py`) — safe expression evaluator (ast whitelist, ไม่มี attribute/subscript/import, ฟังก์ชันเฉพาะ whitelist, cap ความยาว/จำนวน lines) + `IndicatorDef` (name/title/description/**source บังคับ** ตาม legal guardrail/params/lines/long_when/short_when) + `compute_def` → security tests (reject `__import__`, attr access, lambda, subscript ฯลฯ) + correctness tests เทียบ builtin
+- **Pipeline** (`ai/indicator_gen.py` + `prompts/indicator.md`) — describe → AI generate JSON → parse → **validate ด้วยการรันจริงบนแท่งจริง** → repair retry 1 ครั้ง · AI ปฏิเสธ proprietary → 422 · prompt มี DSL reference + กฎห้าม copy AlgoAlpha/LuxAlgo
+- **Endpoints**: `POST /indicators/ai/generate` (+quick backtest ถ้ามี long/short), `POST/GET /indicators/defs`, `DELETE /indicators/defs/{name}`, `GET /indicators?set=<ชื่อ custom>` ใช้เหมือน built-in, `/sim/backtest strategy=custom:<ชื่อ>` · migration v4 `indicator_defs` → **pytest 112/112 ✓ ruff ✓ mypy ✓**
+- **UI**: แท็บ "Indicator AI" — describe → generate → เห็น def + expressions + quick backtest → บันทึก → list + ลบ + **Overlay บน Chart** (วาดทุก line ของ def เป็น line series) → **vitest 26/26 ✓ tsc ✓ eslint ✓**
+- **Live smoke ผ่านจริง (Done criteria F6 ครบ)**: qwen3:8b สร้าง def `zlema_sma_rsi` จากคำอธิบายไทย (อ้าง public source) → validate บนแท่ง Binance จริง → quick backtest 430 ไม้ → save → ใช้เป็น indicator set (`GET /indicators?set=zlema_sma_rsi` ได้ 5 lines) → ใช้เป็น strategy `custom:zlema_sma_rsi` backtest 530 ไม้ wr 39.4%
+
+**M3 (ก่อนหน้า):** sim core (fill SL-first/fee/slippage/risk% + stats ครบ + rule strategy + RunRegistry) · paper live-sim เปิดไม้อัตโนมัติจาก /analyze + WS trade.update · storage v3 (trades/sim_runs) + `/sim/backtest` `/sim/runs/{id}` `/trades` `/stats` · Dashboard UI (stats cards/equity curve/breakdowns/history/export) — live smoke BTC/USDT 1000 แท่ง 86 ไม้ persist ครบ (ยังไม่ได้คลิก UI จริง — ครอบด้วย vitest)
 
 **M2 (ก่อนหน้า):** indicator engine (basic + Zero-Lag Ehlers + SMC — public methodology มี comment อ้าง source) + `GET /indicators` · AI layer: OllamaProvider + orchestrator + repair retry + `POST /analyze`/`GET /signals`/`GET /ai/models` (key-gated) · UI: SignalPanel + Copy/Copy settings + MtfTable + เส้น entry/SL/TP — live smoke qwen3:8b ได้ Signal จริง persist ครบ
 
@@ -52,12 +53,14 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [2026-07-10] **in-app model benchmark = ทำ** (ผู้ใช้เคาะ) — อยู่ M5
 - [2026-07-10] **Backtest = custom event simulator** (ไม่ใช้ vectorbt/backtesting.py — TDD §1 เคาะแล้ว): fill model ของเรา (entry ราคา signal + SL/TP หลายเป้า + timeout รายไม้) ไม่ map กับ API ของทั้งสอง lib, เขียนเอง ~เล็กกว่า + เลี่ยง dep numba · ถ้าอนาคตต้อง vectorized mass-run ค่อย revisit
 - [2026-07-10] **Sim fill model v1**: exit เต็มไม้ที่ TP1/SL/timeout (ยังไม่ partial scale-out), แท่งเดียวแตะทั้ง SL+TP → นับ SL ก่อน (conservative), sizing = risk% ของทุนตั้งต้น (ไม่ compound) — ค่า fee/slippage/ทุน/risk อยู่ใน `SimConfig` ผู้ใช้ปรับได้ ไม่ hardcode
+- [2026-07-10] **Indicator-AI (F6) = DSL config ไม่ใช่โค้ด**: AI ออก JSON definition (expressions บน whitelist: ema/sma/rma/rsi/zlema/atr/shift/highest/lowest/abs/crossover/crossunder + เลขคณิต/เปรียบเทียบ/& |) → engine ตีความผ่าน ast whitelist เอง **ไม่ exec Python จาก LLM** (กัน arbitrary code execution — docs เขียน "config/โค้ด" เลือกฝั่ง config ด้วยเหตุผล security) · validate = รันจริงบนแท่งจริงก่อนรับ + repair retry 1 ครั้ง
 
 ## Open questions (รอผู้ใช้เคาะก่อนเข้าเฟสโค้ด)
 - [ ] ยืนยันรายชื่อ model "⭐ แนะนำ" ใน `docs/AI_MODELS.md` (default model = เคาะแล้ว: VRAM-gated)
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → เข้า M5 ตาม ROADMAP
 
 ## Next
-1. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md
-3. งานค้างไม่บล็อก M4: BYOK UI (TwelveData/cloud keys ผ่าน vault→engine), OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, backtest ด้วย AI signals ย้อนหลัง (replay mode รองรับแล้วใน engine), คลิกทดสอบ Dashboard ในแอพจริง
-4. เข้าเฟส **M4 Indicator-AI Builder** (F6): pipeline describe → AI generate → validate บน sample → backtest → save, ใช้ indicator ที่สร้างเหมือน built-in, legal guardrail public methodology เท่านั้น
+1. commit M4 + push → CI เขียว (M4 gate)
+2. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md — **จำเป็นก่อนเข้า M5** (M5 = model manager + tag แนะนำ key-gated)
+3. งานค้างไม่บล็อก: BYOK UI (TwelveData/cloud keys ผ่าน vault→engine), OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, replay-backtest ด้วย AI signals ย้อนหลัง, คลิกทดสอบ UI ในแอพจริง
+4. เข้าเฟส **M5 Model Manager + Cloud providers + Polish**: cloud AI providers (Anthropic/OpenAI/Google/OpenRouter/GitHub Models, key-gated ผ่าน vault), Ollama auto-install + VRAM gate + pull progress (F7), in-app model benchmark (เคาะแล้ว: ทำ), alerts/notifications, risk gate/disclaimer, workspaces, export report, docs contributor + GitHub release
