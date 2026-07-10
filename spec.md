@@ -9,7 +9,7 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M3 Simulator + Dashboard + History — โค้ด+เทสเสร็จ [2026-07-10] (รอ CI เขียวเพื่อปิด gate)**
+**🟢 M3 Simulator + Dashboard + History — เสร็จ + ปิด gate แล้ว [2026-07-10] (CI เขียวที่ dc49b37 — M0–M3 ปิดครบ)**
 
 **M3 ที่ทำแล้ว (verify จริงทุกข้อ):**
 - **Sim core** (`app/sim/`) — `fill.py` (fill model ตาม Decisions: slippage/fee ต่อขา, SL-first เมื่อชนทั้งคู่, TP1 เต็มไม้, timeout, BE epsilon 0.05R, sizing risk% ของทุนตั้งต้น), `stats.py` (winrate/avgR/expectancy/PF/maxDD/equity curve + breakdown symbol/tf/model/side), `strategy.py` (rule "zlema-smc" — proxy เชิงกติกาไว้ backtest โดยไม่ยิง LLM รายแท่ง), `backtest.py` (replay signals หรือ rule + `RunRegistry` async)
@@ -58,7 +58,6 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → เข้า M5 ตาม ROADMAP
 
 ## Next
-1. commit M3 + push → CI เขียว (M3 gate)
-2. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md
+1. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md
 3. งานค้างไม่บล็อก M4: BYOK UI (TwelveData/cloud keys ผ่าน vault→engine), OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, backtest ด้วย AI signals ย้อนหลัง (replay mode รองรับแล้วใน engine), คลิกทดสอบ Dashboard ในแอพจริง
 4. เข้าเฟส **M4 Indicator-AI Builder** (F6): pipeline describe → AI generate → validate บน sample → backtest → save, ใช้ indicator ที่สร้างเหมือน built-in, legal guardrail public methodology เท่านั้น
