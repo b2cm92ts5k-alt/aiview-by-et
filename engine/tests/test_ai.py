@@ -106,7 +106,7 @@ def test_ai_models_lists_ready_models(db_path: str) -> None:
     ai = FakeAI([])
     with make_client(db_path, ai) as client:
         res = client.get("/ai/models")
-        assert res.json() == {"ollama": ["fake-model:latest"]}
+        assert res.json() == {"ollama": [{"id": "fake-model:latest", "recommended": False}]}
 
 
 @pytest.mark.anyio

@@ -9,6 +9,18 @@ contextBridge.exposeInMainWorld("aiview", {
   vaultSetKey: (provider: string, key: string) =>
     ipcRenderer.invoke("vault:setKey", provider, key),
   vaultHasKey: (provider: string) => ipcRenderer.invoke("vault:hasKey", provider),
+  vaultDeleteKey: (provider: string) => ipcRenderer.invoke("vault:deleteKey", provider),
+  vaultListProviders: () => ipcRenderer.invoke("vault:listProviders"),
+  systemSpecs: () => ipcRenderer.invoke("system:specs"),
+  ollamaStatus: () => ipcRenderer.invoke("ollama:status"),
+  ollamaOpenDownload: () => ipcRenderer.invoke("ollama:openDownload"),
+  ollamaEnsure: (model: string, removeModel: string | null) =>
+    ipcRenderer.invoke("ollama:ensure", model, removeModel),
+  onOllamaProgress: (cb: (p: unknown) => void) => {
+    const listener = (_e: unknown, p: unknown) => cb(p);
+    ipcRenderer.on("ollama:progress", listener);
+    return () => ipcRenderer.removeListener("ollama:progress", listener);
+  },
   notify: (payload: { title: string; body: string }) => ipcRenderer.invoke("app:notify", payload),
   onEngineStatus: (cb: (status: unknown) => void) => {
     const listener = (_e: unknown, status: unknown) => cb(status);

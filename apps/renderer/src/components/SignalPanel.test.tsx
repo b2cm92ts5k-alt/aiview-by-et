@@ -29,7 +29,8 @@ function stubFetch(analyzeBody: unknown, analyzeOk = true) {
     if (path === "/ai/models") {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ ollama: ["llama3.1:8b"] }),
+        json: () =>
+          Promise.resolve({ ollama: [{ id: "llama3.1:8b", recommended: false }] }),
       });
     }
     if (path === "/analyze") {

@@ -21,6 +21,12 @@ class DataService:
         self._symbol_provider: dict[str, str] = {}
         self._symbols_cache: list[SymbolInfo] | None = None
 
+    def add_provider(self, provider: DataProvider) -> None:
+        """BYOK: register provider เพิ่ม runtime (เช่น TwelveData เมื่อผู้ใช้ใส่ key)."""
+        self._providers[provider.name] = provider
+        self._symbols_cache = None  # invalidate ให้ /markets โหลด symbol ใหม่
+        self._symbol_provider = {}
+
     async def markets(self) -> MarketsResponse:
         if self._symbols_cache is None:
             symbols: list[SymbolInfo] = []

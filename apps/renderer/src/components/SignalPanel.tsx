@@ -40,7 +40,9 @@ export default function SignalPanel({
   tf: Timeframe;
   onSignal: (signal: Signal | null) => void;
 }) {
-  const [models, setModels] = useState<{ provider: string; model: string }[]>([]);
+  const [models, setModels] = useState<
+    { provider: string; model: string; recommended: boolean }[]
+  >([]);
   const [selected, setSelected] = useState<string>("");
   const [state, setState] = useState<PanelState>({ kind: "idle" });
   const [copied, setCopied] = useState<string | null>(null);
@@ -52,8 +54,14 @@ export default function SignalPanel({
       .then((byProvider) => {
         if (cancelled) return;
         const flat = Object.entries(byProvider).flatMap(([provider, list]) =>
-          list.map((model) => ({ provider, model })),
+          list.map((entry) => ({
+            provider,
+            model: entry.id,
+            recommended: entry.recommended,
+          })),
         );
+        // เรียงตัวแนะนำขึ้นก่อน (F7)
+        flat.sort((a, b) => Number(b.recommended) - Number(a.recommended));
         setModels(flat);
         if (flat.length > 0) setSelected(`${flat[0].provider}:${flat[0].model}`);
       })
@@ -102,9 +110,9 @@ export default function SignalPanel({
           data-testid="model-select"
         >
           {models.length === 0 && <option value="">ไม่พบ model (เปิด Ollama ก่อน)</option>}
-          {models.map(({ provider, model }) => (
+          {models.map(({ provider, model, recommended }) => (
             <option key={`${provider}:${model}`} value={`${provider}:${model}`}>
-              {provider} · {model}
+              {recommended ? "⭐ " : ""}{provider} · {model}
             </option>
           ))}
         </select>

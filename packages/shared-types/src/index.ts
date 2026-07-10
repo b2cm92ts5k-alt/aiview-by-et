@@ -203,6 +203,64 @@ export interface GenerateIndicatorResponse {
   backtest: Stats | null;
 }
 
+/** GET /ai/models entry (F7 — recommended tag จาก AI_MODELS.md) */
+export interface ModelEntry {
+  id: string;
+  recommended: boolean;
+}
+
+export interface SystemSpecs {
+  ram_mb: number;
+  vram_mb: number | null;
+  gpu_name: string | null;
+}
+
+export interface OllamaStatus {
+  installed: boolean;
+  running: boolean;
+  models: string[];
+  downloadUrl: string;
+}
+
+export interface PullProgress {
+  model: string;
+  status: string;
+  percent: number | null;
+  detail?: string;
+}
+
+export interface BenchmarkModelRef {
+  provider: string;
+  model: string;
+}
+
+export interface BenchmarkModelResult {
+  provider: string;
+  model: string;
+  signals: number;
+  no_setup: number;
+  errors: number;
+  stats: Stats;
+}
+
+export interface BenchmarkRun {
+  run_id: string;
+  status: "running" | "done" | "error";
+  progress: number;
+  detail: string | null;
+  results: BenchmarkModelResult[];
+}
+
+/** workspace ที่ save ได้ (F10) — เก็บใน engine settings key "workspaces" */
+export interface Workspace {
+  name: string;
+  symbol: string;
+  tf: Timeframe;
+  overlaySet: string | null;
+  provider?: string;
+  model?: string;
+}
+
 /** Engine lifecycle status pushed from Electron main to renderer */
 export type EngineStatus =
   | { state: "starting" }

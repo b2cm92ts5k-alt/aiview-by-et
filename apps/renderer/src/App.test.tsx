@@ -41,7 +41,11 @@ function stubEngineFetch() {
     vi.fn((url: string) => {
       const path = new URL(url).pathname;
       const body =
-        path === "/health" ? health : path === "/markets" ? markets : [];
+        path === "/health" ? health
+        : path === "/markets" ? markets
+        : path === "/settings" ? { disclaimer_accepted: true }
+        : path === "/ai/models" ? {}
+        : [];
       return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
     }),
   );
@@ -80,13 +84,16 @@ describe("App", () => {
     stubEngineFetch();
 
     render(<App />);
-    await waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
-    const ws = FakeWebSocket.instances[0];
-    expect(ws.url).toContain("token=tok");
-    ws.open();
-    expect(JSON.parse(ws.sent[0])).toEqual({
-      type: "subscribe",
-      payload: { symbol: "BTC/USDT", tf: "15m" },
+    // 2 connections: chart stream + alerts hook (F8)
+    await waitFor(() => expect(FakeWebSocket.instances.length).toBeGreaterThanOrEqual(1));
+    for (const ws of FakeWebSocket.instances) ws.open();
+    await waitFor(() => {
+      const sent = FakeWebSocket.instances.flatMap((w) => w.sent).map((s) => JSON.parse(s));
+      expect(sent).toContainEqual({
+        type: "subscribe",
+        payload: { symbol: "BTC/USDT", tf: "15m" },
+      });
     });
+    expect(FakeWebSocket.instances[0].url).toContain("token=tok");
   });
 });

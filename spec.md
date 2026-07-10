@@ -9,14 +9,17 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🟢 M4 Indicator-AI Builder — เสร็จ + ปิด gate แล้ว [2026-07-10] (CI เขียวที่ 9253a10 — M0–M4 ปิดครบ เหลือ M5)**
+**🟢 M5 Model Manager + Cloud providers + Polish — โค้ด+เทสเสร็จ [2026-07-10] (รอ CI ปิด gate — จบ roadmap M0–M5)**
 
-**M4 ที่ทำแล้ว:**
-- **DSL** (`app/indicators/dsl.py`) — safe expression evaluator (ast whitelist, ไม่มี attribute/subscript/import, ฟังก์ชันเฉพาะ whitelist, cap ความยาว/จำนวน lines) + `IndicatorDef` (name/title/description/**source บังคับ** ตาม legal guardrail/params/lines/long_when/short_when) + `compute_def` → security tests (reject `__import__`, attr access, lambda, subscript ฯลฯ) + correctness tests เทียบ builtin
-- **Pipeline** (`ai/indicator_gen.py` + `prompts/indicator.md`) — describe → AI generate JSON → parse → **validate ด้วยการรันจริงบนแท่งจริง** → repair retry 1 ครั้ง · AI ปฏิเสธ proprietary → 422 · prompt มี DSL reference + กฎห้าม copy AlgoAlpha/LuxAlgo
-- **Endpoints**: `POST /indicators/ai/generate` (+quick backtest ถ้ามี long/short), `POST/GET /indicators/defs`, `DELETE /indicators/defs/{name}`, `GET /indicators?set=<ชื่อ custom>` ใช้เหมือน built-in, `/sim/backtest strategy=custom:<ชื่อ>` · migration v4 `indicator_defs` → **pytest 112/112 ✓ ruff ✓ mypy ✓**
-- **UI**: แท็บ "Indicator AI" — describe → generate → เห็น def + expressions + quick backtest → บันทึก → list + ลบ + **Overlay บน Chart** (วาดทุก line ของ def เป็น line series) → **vitest 26/26 ✓ tsc ✓ eslint ✓**
-- **Live smoke ผ่านจริง (Done criteria F6 ครบ)**: qwen3:8b สร้าง def `zlema_sma_rsi` จากคำอธิบายไทย (อ้าง public source) → validate บนแท่ง Binance จริง → quick backtest 430 ไม้ → save → ใช้เป็น indicator set (`GET /indicators?set=zlema_sma_rsi` ได้ 5 lines) → ใช้เป็น strategy `custom:zlema_sma_rsi` backtest 530 ไม้ wr 39.4%
+**M5 ที่ทำแล้ว (verify จริง):**
+- **Cloud AI providers** (`ai/cloud.py`) — Anthropic / OpenAI / Google / OpenRouter / GitHub Models (OpenAI-compat base) ทั้งหมด key-gated: key ไม่ valid → list ว่าง (F7) · **key handoff** `POST/GET/DELETE /providers/keys` — main อ่าน vault → ส่งเข้า engine in-memory ต่อ session (TDD §9, ไม่ log/ไม่ลงดิสก์) รวม `twelvedata` (BYOK data → /markets โผล่ทันที)
+- **Tag ⭐ แนะนำ** (`ai/recommended.py`) — mapping ตาม AI_MODELS.md ที่ผู้ใช้เคาะ · `/ai/models` shape ใหม่ `{id, recommended}`
+- **Benchmark** (`sim/benchmark.py`) — walk-forward K จุดตัด ทุก model เห็นข้อมูลชุดเดียวกัน → sim ด้วย fill model เดิม → stats ต่อ model · `POST /benchmark` + `GET /benchmark/runs/{id}` + WS progress → **pytest 137/137 ✓ ruff ✓ mypy ✓**
+- **Desktop**: Ollama manager (detect/serve/pull พร้อม progress, single-active = rm ตัวเก่าก่อน pull, เปิดหน้า download ถ้ายังไม่ติดตั้ง), `system:specs` (VRAM ผ่าน nvidia-smi + RAM), push vault keys → engine เมื่อ ready + เมื่อ setKey
+- **UI**: แท็บ **Models** (specs เครื่อง, local catalog ตาม AI_MODELS §B + VRAM-gated lock 🔒, cloud BYOK key manager, benchmark UI + ตารางผล) · **Disclaimer ครั้งแรก** (F9) · **Desktop alerts** signal.new/ไม้ปิด (F8) · **Workspaces** save/load (F10) · **Export Report MD** (F11) → **vitest 29/29 ✓ tsc ✓ eslint ✓**
+- **Docs**: CONTRIBUTING.md + README (สถานะ+AI/BYOK guide) · **Live smoke ผ่าน**: `/ai/models` กับ ollama จริง (qwen3:8b → recommended=false ถูกต้อง), key register/list/remove roundtrip, key ปลอม → list ว่าง (key-gate จริง)
+
+**M4 (ก่อนหน้า):** DSL safe evaluator (ast whitelist — AI ออก config ไม่ใช่โค้ด, source citation บังคับ) + pipeline generate→validate จริง→repair→quick backtest→save (`indicator_defs` v4) + ใช้เป็น set/strategy ได้ + UI Indicator AI + overlay — live smoke qwen3:8b สร้าง `zlema_sma_rsi` ครบลูป F6
 
 **M3 (ก่อนหน้า):** sim core (fill SL-first/fee/slippage/risk% + stats ครบ + rule strategy + RunRegistry) · paper live-sim เปิดไม้อัตโนมัติจาก /analyze + WS trade.update · storage v3 (trades/sim_runs) + `/sim/backtest` `/sim/runs/{id}` `/trades` `/stats` · Dashboard UI (stats cards/equity curve/breakdowns/history/export) — live smoke BTC/USDT 1000 แท่ง 86 ไม้ persist ครบ (ยังไม่ได้คลิก UI จริง — ครอบด้วย vitest)
 
@@ -55,11 +58,12 @@ PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 - [2026-07-10] **Sim fill model v1**: exit เต็มไม้ที่ TP1/SL/timeout (ยังไม่ partial scale-out), แท่งเดียวแตะทั้ง SL+TP → นับ SL ก่อน (conservative), sizing = risk% ของทุนตั้งต้น (ไม่ compound) — ค่า fee/slippage/ทุน/risk อยู่ใน `SimConfig` ผู้ใช้ปรับได้ ไม่ hardcode
 - [2026-07-10] **Indicator-AI (F6) = DSL config ไม่ใช่โค้ด**: AI ออก JSON definition (expressions บน whitelist: ema/sma/rma/rsi/zlema/atr/shift/highest/lowest/abs/crossover/crossunder + เลขคณิต/เปรียบเทียบ/& |) → engine ตีความผ่าน ast whitelist เอง **ไม่ exec Python จาก LLM** (กัน arbitrary code execution — docs เขียน "config/โค้ด" เลือกฝั่ง config ด้วยเหตุผล security) · validate = รันจริงบนแท่งจริงก่อนรับ + repair retry 1 ครั้ง
 
-## Open questions (รอผู้ใช้เคาะก่อนเข้าเฟสโค้ด)
-- [ ] ยืนยันรายชื่อ model "⭐ แนะนำ" ใน `docs/AI_MODELS.md` (default model = เคาะแล้ว: VRAM-gated)
-- [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → เข้า M5 ตาม ROADMAP
+## Open questions — เคาะครบแล้ว
+- [x] รายชื่อ model "⭐ แนะนำ" ใน `docs/AI_MODELS.md` — **เคาะแล้ว [2026-07-10]: ตามที่เขียนไว้** (mapping อยู่ใน `engine/app/ai/recommended.py` — จะแก้ต้องถามก่อน)
+- [x] in-app model benchmark (แข่ง winrate จริง) — **เคาะแล้ว [2026-07-10]: เอา** → ทำแล้วใน M5
 
 ## Next
-1. ผู้ใช้เคาะ open question ที่เหลือ: รายชื่อ model "⭐ แนะนำ" ใน AI_MODELS.md — **จำเป็นก่อนเข้า M5** (M5 = model manager + tag แนะนำ key-gated)
-3. งานค้างไม่บล็อก: BYOK UI (TwelveData/cloud keys ผ่าน vault→engine), OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, replay-backtest ด้วย AI signals ย้อนหลัง, คลิกทดสอบ UI ในแอพจริง
-4. เข้าเฟส **M5 Model Manager + Cloud providers + Polish**: cloud AI providers (Anthropic/OpenAI/Google/OpenRouter/GitHub Models, key-gated ผ่าน vault), Ollama auto-install + VRAM gate + pull progress (F7), in-app model benchmark (เคาะแล้ว: ทำ), alerts/notifications, risk gate/disclaimer, workspaces, export report, docs contributor + GitHub release
+1. commit M5 + push → CI เขียว (M5 gate = **จบ roadmap M0–M5**)
+2. ตัดสินใจ release: tag v0.1.0 + GitHub Release (รอผู้ใช้สั่ง — outward-facing) · repo public + CI พร้อมแล้ว
+3. Backlog หลัง release: ทดสอบ cloud provider กับ key จริง, Ollama auto-install ตัว installer (ตอนนี้เปิดหน้า download), default model auto-select ตาม VRAM ตอน first-run, OHLCV cache SQLite, rate-limit token bucket, SMC markers บน chart, signal history UI, Playwright E2E, คลิกทดสอบ UI จริงทุก view, max-risk warning (F9 ส่วนที่เหลือ), openapi-typescript แทน shared-types มือ
+4. Future: Mobile (ROADMAP) — reuse engine API

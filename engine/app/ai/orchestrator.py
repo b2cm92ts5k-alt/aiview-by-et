@@ -135,6 +135,44 @@ def _parse_signal(
         raise SignalParseError(f"signal schema mismatch: {e}") from e
 
 
+def build_context_from_candles(symbol: str, tf: Timeframe,
+                               candles: list[Candle]) -> dict[str, str]:
+    """สร้าง context จาก candles ที่เตรียมมาแล้ว (ใช้ใน benchmark walk-forward)."""
+    if not candles:
+        raise ValueError(f"no candles for {symbol} {tf}")
+    df = candles_to_df(candles)
+    results = compute_core(df)
+    latest = {}
+    for r in results:
+        for line, values in r.lines.items():
+            if values and values[-1] is not None:
+                latest[line] = round(values[-1], 6)
+    smc = next(r for r in results if r.name == "smc")
+    structure = [f"- {m.kind} @ {m.price:g} (ts {m.ts})" for m in smc.markers[-8:]] or [
+        "- none detected"
+    ]
+    return {
+        "symbol": symbol,
+        "primary_tf": tf,
+        "mtf_context": f"- {tf}: {json.dumps(_tf_summary(candles))}",
+        "candles": _fmt_candles(candles[-CANDLES_IN_PROMPT:]),
+        "indicators": json.dumps(latest),
+        "structure": "\n".join(structure),
+    }
+
+
+async def analyze_prepared(
+    provider: AIProvider,
+    model: str,
+    symbol: str,
+    tf: Timeframe,
+    candles: list[Candle],
+) -> Signal:
+    """เหมือน analyze แต่ใช้ candles ที่ส่งมาเอง — สำหรับ benchmark historical."""
+    ctx = build_context_from_candles(symbol, tf, candles)
+    return await _complete_and_parse(provider, model, symbol, tf, ctx)
+
+
 async def analyze(
     service: DataService,
     provider: AIProvider,
@@ -143,6 +181,16 @@ async def analyze(
     tfs: list[Timeframe],
 ) -> Signal:
     ctx = await build_context(service, symbol, tfs)
+    return await _complete_and_parse(provider, model, symbol, tfs[0], ctx)
+
+
+async def _complete_and_parse(
+    provider: AIProvider,
+    model: str,
+    symbol: str,
+    primary_tf: Timeframe,
+    ctx: dict[str, str],
+) -> Signal:
     system, user = _split_prompt(PROMPT_PATH.read_text(encoding="utf-8"))
     messages = [
         {"role": "system", "content": system},
@@ -150,7 +198,7 @@ async def analyze(
     ]
     text = await provider.complete(model, messages, json_mode=True)
     try:
-        return _parse_signal(text, symbol, tfs[0], model)
+        return _parse_signal(text, symbol, primary_tf, model)
     except SignalParseError as first_error:
         # repair retry (TDD §6): ส่ง error กลับให้แก้เป็น JSON ที่ถูก
         messages += [
@@ -160,4 +208,4 @@ async def analyze(
                         "Respond again with ONLY the corrected JSON object."},
         ]
         text = await provider.complete(model, messages, json_mode=True)
-        return _parse_signal(text, symbol, tfs[0], model)
+        return _parse_signal(text, symbol, primary_tf, model)

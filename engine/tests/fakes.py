@@ -48,7 +48,7 @@ class FakeProvider(DataProvider):
         self, symbol: str, tf: Timeframe, since: int | None = None, limit: int = 500
     ) -> list[Candle]:
         self.fetch_calls.append((symbol, tf, limit))
-        return make_candles(symbol, tf, min(limit, 24))
+        return make_candles(symbol, tf, min(limit, 400))
 
     async def subscribe(self, symbol: str, tf: Timeframe) -> AsyncIterator[Candle]:
         for c in self.stream_candles:

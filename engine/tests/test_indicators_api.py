@@ -8,8 +8,8 @@ def test_indicators_core_set(client: TestClient) -> None:
     names = {r["name"] for r in body}
     assert names == {"ema", "rsi", "atr", "macd", "zero_lag", "smc"}
     ema = next(r for r in body if r["name"] == "ema")
-    # ค่า line ยาวเท่ากับจำนวนแท่ง (FakeProvider คืน 24 แท่ง)
-    assert len(ema["lines"]["ema20"]) == 24
+    # ค่า line ยาวเท่ากับจำนวนแท่งที่ขอ (FakeProvider คืนตาม limit, cap 400)
+    assert len(ema["lines"]["ema20"]) == 60
     assert ema["lines"]["ema20"][-1] is not None
 
 

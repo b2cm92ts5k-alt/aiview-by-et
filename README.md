@@ -4,7 +4,7 @@
 
 Desktop app หน้าตาคล้าย TradingView · **Electron + React** frontend · **Python/FastAPI** engine · AI ได้ทั้ง **Local (Ollama)** และ **Cloud API** · PC ก่อน แล้วเผื่อ Mobile
 
-**License:** MIT · **Status:** 🟠 M0 Foundations (scaffold แอพ + engine + test harness แล้ว)
+**License:** MIT · **Status:** 🟢 M0–M5 ครบตาม roadmap — chart realtime · AI signals · simulator/backtest · Indicator-AI builder · model manager + benchmark
 
 > ⚠️ **Disclaimer:** เครื่องมือนี้ใช้เพื่อการวิเคราะห์และการศึกษาเท่านั้น **ไม่ใช่คำแนะนำการลงทุน** การเทรดมีความเสี่ยง ผลจากอดีต/การจำลองไม่รับประกันผลในอนาคต
 
@@ -31,6 +31,10 @@ npm run dev
 Tests: `npm test` (vitest) · `npm run test:engine` (pytest) · `npm run lint` · `npm run typecheck`
 
 โครง repo: `apps/desktop` (Electron main/preload) · `apps/renderer` (React UI) · `engine/` (Python FastAPI) · `packages/shared-types` (FE/BE contract)
+
+**AI**: Local ผ่าน [Ollama](https://ollama.com) (แอพจัดการ pull/VRAM gate ให้จากแท็บ Models) หรือ Cloud — ใส่ API key ของคุณเอง (BYOK, เก็บเข้ารหัสในเครื่อง) · **Data**: Binance ฟรีไม่ต้องมี key, ตลาดอื่นใส่ key Twelve Data
+
+อยากช่วยพัฒนา? อ่าน [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 📖 Design Documentation
 

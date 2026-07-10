@@ -26,7 +26,7 @@ function stubFetch(savedList: unknown[] = []) {
   return vi.fn((url: string, init?: RequestInit) => {
     const path = new URL(url).pathname;
     let body: unknown = [];
-    if (path === "/ai/models") body = { ollama: ["qwen3:8b"] };
+    if (path === "/ai/models") body = { ollama: [{ id: "qwen3:8b", recommended: false }] };
     else if (path === "/indicators/ai/generate") body = { definition, backtest };
     else if (path === "/indicators/defs" && init?.method === "POST") body = { name: "zl_cross" };
     else if (path === "/indicators/defs") body = savedList;

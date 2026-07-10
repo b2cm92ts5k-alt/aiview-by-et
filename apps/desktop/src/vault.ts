@@ -41,3 +41,13 @@ export async function getKeyForEngine(provider: string): Promise<string | null> 
   if (!blob) return null;
   return safeStorage.decryptString(Buffer.from(blob, "base64"));
 }
+
+export async function listKeyProviders(): Promise<string[]> {
+  return Object.keys(await readVault());
+}
+
+export async function deleteKey(provider: string): Promise<void> {
+  const vault = await readVault();
+  delete vault[provider];
+  await fs.writeFile(vaultPath(), JSON.stringify(vault), "utf-8");
+}

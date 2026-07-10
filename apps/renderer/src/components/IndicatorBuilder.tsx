@@ -43,7 +43,7 @@ export default function IndicatorBuilder({ info }: { info: EngineInfo | null }) 
       .then((byProvider) => {
         if (cancelled) return;
         const flat = Object.entries(byProvider).flatMap(([provider, list]) =>
-          list.map((model) => ({ provider, model })),
+          list.map((entry) => ({ provider, model: entry.id })),
         );
         setModels(flat);
         if (flat.length > 0) setSelected(`${flat[0].provider}:${flat[0].model}`);

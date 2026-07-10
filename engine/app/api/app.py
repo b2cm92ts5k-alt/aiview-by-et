@@ -21,6 +21,8 @@ from fastapi.responses import JSONResponse
 from app import __version__
 from app.ai import indicator_gen, orchestrator
 from app.ai.base import AIProvider
+from app.ai.cloud import CLOUD_PROVIDERS
+from app.ai.recommended import is_recommended
 from app.data.service import DataService
 from app.indicators.base import IndicatorResult, candles_to_df
 from app.indicators.dsl import DslError, IndicatorDef, compute_def
@@ -32,6 +34,8 @@ from app.models import (
     Candle,
     GenerateIndicatorRequest,
     MarketsResponse,
+    ModelEntry,
+    ProviderKeyRequest,
     Signal,
     SimConfig,
     Stats,
@@ -39,6 +43,7 @@ from app.models import (
     Trade,
 )
 from app.sim import backtest as bt
+from app.sim import benchmark as bm
 from app.sim.paper import PaperEngine
 from app.sim.stats import compute_stats
 from app.store import db
@@ -88,6 +93,7 @@ def create_app(
 
     paper = PaperEngine(service, conn, broadcast)
     runs = bt.RunRegistry()
+    bench_runs = bm.BenchmarkRegistry()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -174,10 +180,47 @@ def create_app(
         return compute(df)
 
     @app.get("/ai/models")
-    async def ai_models(provider: str | None = None) -> dict[str, list[str]]:
+    async def ai_models(provider: str | None = None) -> dict[str, list[ModelEntry]]:
         # key-gated (F7): เฉพาะ provider ที่พร้อมใช้เท่านั้นที่ถูก register
         selected = {provider: ai[provider]} if provider and provider in ai else ai
-        return {name: await p.list_models() for name, p in selected.items()}
+        out: dict[str, list[ModelEntry]] = {}
+        for name, p in selected.items():
+            models = await p.list_models()
+            out[name] = [ModelEntry(id=m, recommended=is_recommended(name, m))
+                         for m in models]
+        return out
+
+    @app.get("/providers/keys")
+    def provider_key_status() -> dict[str, list[str]]:
+        """provider ที่พร้อมใช้ (มี key/รันอยู่) — ไม่มีทางได้ key กลับออกไป."""
+        return {"ai": sorted(ai.keys()),
+                "cloud_available": sorted(CLOUD_PROVIDERS.keys())}
+
+    @app.post("/providers/keys")
+    async def set_provider_key(req: ProviderKeyRequest) -> dict[str, str]:
+        """รับ key จาก Electron main — เก็บใน memory ต่อ session เท่านั้น ห้าม log."""
+        if req.provider in CLOUD_PROVIDERS:
+            old = ai.pop(req.provider, None)
+            if old is not None:
+                await old.close()
+            ai[req.provider] = CLOUD_PROVIDERS[req.provider](req.key)
+            return {"provider": req.provider, "status": "registered"}
+        if req.provider == "twelvedata":
+            from app.data.twelvedata import TwelveDataProvider
+
+            service.add_provider(TwelveDataProvider(req.key))
+            return {"provider": req.provider, "status": "registered"}
+        raise HTTPException(status_code=404, detail=f"unknown provider: {req.provider}")
+
+    @app.delete("/providers/keys/{provider}")
+    async def remove_provider_key(provider: str) -> dict[str, str]:
+        if provider == "ollama":
+            raise HTTPException(status_code=422, detail="ollama has no key")
+        removed = ai.pop(provider, None)
+        if removed is None:
+            raise HTTPException(status_code=404, detail=f"provider not registered: {provider}")
+        await removed.close()
+        return {"provider": provider, "status": "removed"}
 
     @app.post("/analyze")
     async def analyze(req: AnalyzeRequest) -> Signal | None:
@@ -296,6 +339,44 @@ def create_app(
         if not db.delete_indicator_def(conn, name):
             raise HTTPException(status_code=404, detail=f"unknown indicator: {name}")
         return {"deleted": True}
+
+    @app.post("/benchmark")
+    async def benchmark(req: bm.BenchmarkRequest) -> dict[str, str]:
+        """เทียบหลาย model บนข้อมูลชุดเดียวกัน (walk-forward) — async."""
+        for ref in req.models:
+            if ref.provider not in ai:
+                raise HTTPException(status_code=404,
+                                    detail=f"unknown AI provider: {ref.provider}")
+        if not req.models:
+            raise HTTPException(status_code=422, detail="models must not be empty")
+        run_id = bench_runs.create()
+
+        async def execute() -> None:
+            try:
+                candles = await service.candles(req.symbol, req.tf, limit=req.limit)
+
+                async def on_progress(v: float) -> None:
+                    bench_runs.progress(run_id, v)
+                    await broadcast("benchmark.progress", {"run_id": run_id, "progress": v})
+
+                results = await bm.run_benchmark(req, ai, candles, on_progress)
+                bench_runs.finish(run_id, results)
+                await broadcast("benchmark.progress", {"run_id": run_id, "progress": 1.0,
+                                                       "status": "done"})
+            except Exception as e:
+                bench_runs.fail(run_id, str(e))
+                await broadcast("benchmark.progress", {"run_id": run_id, "status": "error",
+                                                       "detail": str(e)})
+
+        asyncio.create_task(execute())
+        return {"run_id": run_id}
+
+    @app.get("/benchmark/runs/{run_id}")
+    def benchmark_run(run_id: str) -> bm.BenchmarkRun:
+        run = bench_runs.get(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"unknown run: {run_id}")
+        return run
 
     @app.get("/sim/runs/{run_id}")
     def sim_run(run_id: str) -> BacktestRun:

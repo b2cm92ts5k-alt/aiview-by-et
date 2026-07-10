@@ -72,6 +72,18 @@ class AnalyzeRequest(BaseModel):
     model: str
 
 
+class ProviderKeyRequest(BaseModel):
+    """POST /providers/keys — key อยู่ใน memory ต่อ session เท่านั้น (TDD §9)."""
+
+    provider: str
+    key: str
+
+
+class ModelEntry(BaseModel):
+    id: str
+    recommended: bool = False
+
+
 class GenerateIndicatorRequest(BaseModel):
     """POST /indicators/ai/generate (F6)."""
 

@@ -8,6 +8,7 @@ import type {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRun, fetchStats, fetchTrades, postBacktest } from "../api/engine";
 import { downloadText, tradesToCsv } from "../utils/csv";
+import { statsToMarkdown } from "../utils/report";
 import EquityCurve from "./EquityCurve";
 
 type Scope = "backtest" | "paper";
@@ -180,6 +181,16 @@ export default function Dashboard({
             className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
           >
             Export JSON
+          </button>
+          <button
+            onClick={() =>
+              stats && downloadText("report.md", "text/markdown",
+                                    statsToMarkdown(stats, trades, scope))
+            }
+            disabled={!stats || trades.length === 0}
+            className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          >
+            Export Report
           </button>
         </div>
       </div>

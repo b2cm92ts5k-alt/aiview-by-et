@@ -2,6 +2,8 @@ import type {
   AnalyzeRequest,
   BacktestRequest,
   BacktestRun,
+  BenchmarkModelRef,
+  BenchmarkRun,
   Candle,
   EngineInfo,
   GenerateIndicatorResponse,
@@ -9,6 +11,7 @@ import type {
   IndicatorDef,
   IndicatorResult,
   MarketsResponse,
+  ModelEntry,
   Signal,
   Stats,
   Timeframe,
@@ -73,8 +76,36 @@ export function fetchIndicators(
   return get<IndicatorResult[]>(info, `/indicators?${params}`);
 }
 
-export function fetchAiModels(info: EngineInfo): Promise<Record<string, string[]>> {
-  return get<Record<string, string[]>>(info, "/ai/models");
+export function fetchAiModels(info: EngineInfo): Promise<Record<string, ModelEntry[]>> {
+  return get<Record<string, ModelEntry[]>>(info, "/ai/models");
+}
+
+export function fetchSettings(info: EngineInfo): Promise<Record<string, unknown>> {
+  return get<Record<string, unknown>>(info, "/settings");
+}
+
+export async function putSettings(
+  info: EngineInfo,
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${base(info)}/settings`, {
+    method: "PUT",
+    headers: { ...headers(info), "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`settings failed: HTTP ${res.status}`);
+  return (await res.json()) as Record<string, unknown>;
+}
+
+export function postBenchmark(
+  info: EngineInfo,
+  req: { models: BenchmarkModelRef[]; symbol: string; tf: Timeframe; windows?: number },
+): Promise<{ run_id: string }> {
+  return post<{ run_id: string }>(info, "/benchmark", req);
+}
+
+export function fetchBenchmarkRun(info: EngineInfo, runId: string): Promise<BenchmarkRun> {
+  return get<BenchmarkRun>(info, `/benchmark/runs/${runId}`);
 }
 
 export async function postBacktest(

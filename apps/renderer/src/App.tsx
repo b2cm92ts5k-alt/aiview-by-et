@@ -3,8 +3,12 @@ import { useEffect, useState } from "react";
 import { fetchMarkets, getEngineInfo } from "./api/engine";
 import Chart from "./components/Chart";
 import Dashboard from "./components/Dashboard";
+import DisclaimerModal from "./components/DisclaimerModal";
 import HealthBadge from "./components/HealthBadge";
 import IndicatorBuilder from "./components/IndicatorBuilder";
+import ModelsView from "./components/ModelsView";
+import WorkspaceBar from "./components/WorkspaceBar";
+import { useEngineAlerts } from "./hooks/useEngineAlerts";
 import MtfTable from "./components/MtfTable";
 import SignalPanel from "./components/SignalPanel";
 import SymbolSearch from "./components/SymbolSearch";
@@ -12,12 +16,13 @@ import TimeframeSelector from "./components/TimeframeSelector";
 import Watchlist from "./components/Watchlist";
 import { useAppStore } from "./store/app";
 
-type View = "chart" | "dashboard" | "builder";
+type View = "chart" | "dashboard" | "builder" | "models";
 
 const VIEW_LABEL: Record<View, string> = {
   chart: "Chart",
   dashboard: "Dashboard",
   builder: "Indicator AI",
+  models: "Models",
 };
 
 // left toolbar: M1 placeholder — drawing tools มาเฟสหลัง (FEATURES §F5)
@@ -28,6 +33,8 @@ export default function App() {
   const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
   const [signal, setSignal] = useState<Signal | null>(null);
   const [view, setView] = useState<View>("chart");
+
+  useEngineAlerts(engineInfo); // F8: desktop notifications
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +70,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-[#0b0e14] text-slate-100">
+      <DisclaimerModal info={engineInfo} />
       {/* top bar */}
       <header className="flex items-center gap-4 border-b border-slate-800 px-3 py-2">
         <div className="text-sm font-bold tracking-wide text-cyan-400">
@@ -71,7 +79,7 @@ export default function App() {
         <SymbolSearch symbols={symbols} value={symbol} onSelect={setSymbol} />
         <TimeframeSelector value={tf} onChange={setTf} />
         <div className="flex rounded border border-slate-700 text-xs" data-testid="view-tabs">
-          {(["chart", "dashboard", "builder"] as View[]).map((v) => (
+          {(["chart", "dashboard", "builder", "models"] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -83,7 +91,8 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-3">
+          <WorkspaceBar info={engineInfo} />
           <span className="text-sm font-semibold text-slate-200">{symbol}</span>
           <HealthBadge info={engineInfo} />
         </div>
@@ -129,9 +138,13 @@ export default function App() {
           <main className="min-w-0 flex-1">
             <Dashboard info={engineInfo} symbol={symbol} tf={tf} />
           </main>
-        ) : (
+        ) : view === "builder" ? (
           <main className="min-w-0 flex-1">
             <IndicatorBuilder info={engineInfo} />
+          </main>
+        ) : (
+          <main className="min-w-0 flex-1">
+            <ModelsView info={engineInfo} symbol={symbol} tf={tf} />
           </main>
         )}
       </div>

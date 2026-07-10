@@ -1,7 +1,12 @@
-import { BrowserWindow, Notification, app, ipcMain } from "electron";
+import { BrowserWindow, Notification, app, ipcMain, shell } from "electron";
 import * as path from "path";
+import { ensureModel, ollamaStatus } from "./ollama";
 import { type SidecarHandle, startSidecar } from "./sidecar";
-import { hasKey, setKey } from "./vault";
+import { getSystemSpecs } from "./specs";
+import { deleteKey, getKeyForEngine, hasKey, listKeyProviders, setKey } from "./vault";
+
+// provider ที่รองรับ BYOK — key ถูกส่งเข้า engine แบบ in-memory ต่อ session (TDD §9)
+const KEY_PROVIDERS = ["anthropic", "openai", "google", "openrouter", "github", "twelvedata"];
 
 let sidecar: SidecarHandle | null = null;
 let win: BrowserWindow | null = null;
@@ -37,12 +42,57 @@ function createWindow(): void {
   });
 }
 
+/** ส่ง key เข้า engine — in-memory เท่านั้น ห้าม log ตัว key (TDD §9) */
+async function pushKeyToEngine(provider: string, key: string): Promise<void> {
+  if (!sidecar) return;
+  try {
+    await fetch(`http://127.0.0.1:${sidecar.port}/providers/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Engine-Token": sidecar.token },
+      body: JSON.stringify({ provider, key }),
+    });
+  } catch (err) {
+    console.error(`[main] push key for ${provider} failed:`, err);
+  }
+}
+
+async function pushAllVaultKeys(): Promise<void> {
+  for (const provider of await listKeyProviders()) {
+    if (!KEY_PROVIDERS.includes(provider)) continue;
+    const key = await getKeyForEngine(provider);
+    if (key) await pushKeyToEngine(provider, key);
+  }
+}
+
 function registerIpc(): void {
   ipcMain.handle("engine:info", () =>
     sidecar ? { port: sidecar.port, token: sidecar.token } : null,
   );
-  ipcMain.handle("vault:setKey", (_e, provider: string, key: string) => setKey(provider, key));
+  ipcMain.handle("vault:setKey", async (_e, provider: string, key: string) => {
+    await setKey(provider, key);
+    await pushKeyToEngine(provider, key); // มีผลทันทีโดย key ไม่ผ่าน renderer กลับ
+  });
   ipcMain.handle("vault:hasKey", (_e, provider: string) => hasKey(provider));
+  ipcMain.handle("vault:deleteKey", async (_e, provider: string) => {
+    await deleteKey(provider);
+    if (sidecar) {
+      await fetch(`http://127.0.0.1:${sidecar.port}/providers/keys/${provider}`, {
+        method: "DELETE",
+        headers: { "X-Engine-Token": sidecar.token },
+      }).catch(() => {});
+    }
+  });
+  ipcMain.handle("vault:listProviders", () => listKeyProviders());
+  ipcMain.handle("system:specs", () => getSystemSpecs());
+  ipcMain.handle("ollama:status", () => ollamaStatus());
+  ipcMain.handle("ollama:openDownload", () => shell.openExternal("https://ollama.com/download"));
+  ipcMain.handle(
+    "ollama:ensure",
+    (e, model: string, removeModel: string | null) =>
+      ensureModel(model, removeModel, (p) => {
+        e.sender.send("ollama:progress", p);
+      }),
+  );
   ipcMain.handle("app:notify", (_e, payload: { title: string; body: string }) => {
     new Notification({ title: payload.title, body: payload.body }).show();
   });
@@ -57,6 +107,7 @@ app.whenReady().then(async () => {
       onFailed: () => sendEngineStatus({ state: "failed" }),
     });
     sendEngineStatus({ state: "ready", info: { port: sidecar.port, token: sidecar.token } });
+    await pushAllVaultKeys(); // BYOK: key จาก vault → engine ทันทีที่พร้อม
   } catch (err) {
     console.error("[main] engine failed to start:", err);
     sendEngineStatus({ state: "failed" });
