@@ -13,7 +13,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present",
-    "test:engine": "cd engine && .venv\\Scripts\\python.exe -m pytest"
+    "test:engine": "cd engine && .venv\\Scripts\\python.exe -m pytest",
+    "package:engine": "cd engine && .venv\\Scripts\\python.exe -m PyInstaller --noconfirm --clean --onedir --name aiview-engine --distpath ..\\apps\\desktop\\engine-dist-build --collect-submodules uvicorn --collect-submodules websockets --collect-all ccxt --add-data \"app\\ai\\prompts;app\\ai\\prompts\" pyi_entry.py",
+    "package": "npm run build -w apps/renderer && npm run build -w apps/desktop && npm run package:engine && node scripts/prepare-package.mjs && npm run dist -w apps/desktop"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

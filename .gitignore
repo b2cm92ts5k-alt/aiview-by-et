@@ -45,6 +45,10 @@ env/
 *.spec.bak
 release/
 *.exe
+engine-dist/
+engine-dist-build/
+renderer-dist/
+/engine/*.spec
 *.dmg
 *.AppImage
 *.snap

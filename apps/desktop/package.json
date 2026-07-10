@@ -3,15 +3,52 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/main.js",
+  "description": "AIView by ET - AI market analysis desktop app",
+  "author": "ET Office",
+  "license": "MIT",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "dev": "wait-on tcp:127.0.0.1:5173 && npm run build && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron ."
+    "dev": "wait-on tcp:127.0.0.1:5173 && npm run build && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.etoffice.aiview",
+    "productName": "AIView by ET",
+    "electronVersion": "43.1.0",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "renderer-dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "engine-dist",
+        "to": "engine"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "cross-env": "^7.0.3",
     "electron": "^43.0.0",
+    "electron-builder": "^26.0.0",
     "typescript": "^5.5.0",
     "wait-on": "^8.0.0"
   }

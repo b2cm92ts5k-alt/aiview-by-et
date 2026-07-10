@@ -11,9 +11,12 @@ const KEY_PROVIDERS = ["anthropic", "openai", "google", "openrouter", "github", 
 let sidecar: SidecarHandle | null = null;
 let win: BrowserWindow | null = null;
 
-// dev: apps/desktop → repo root is two levels up
+// dev: apps/desktop → repo root is two levels up · prod: engine อยู่ใน resources
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
-const engineDir = path.join(repoRoot, "engine");
+const engineDir = app.isPackaged
+  ? path.join(process.resourcesPath, "engine")
+  : path.join(repoRoot, "engine");
+const engineExe = app.isPackaged ? path.join(engineDir, "aiview-engine.exe") : null;
 
 function sendEngineStatus(status: unknown): void {
   win?.webContents.send("engine:status", status);
@@ -34,6 +37,9 @@ function createWindow(): void {
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     void win.loadURL(devUrl);
+  } else if (app.isPackaged) {
+    // renderer-dist ถูก copy เข้า app package ตอน build (ดู scripts "package")
+    void win.loadFile(path.join(__dirname, "..", "renderer-dist", "index.html"));
   } else {
     void win.loadFile(path.join(repoRoot, "apps", "renderer", "dist", "index.html"));
   }
@@ -102,10 +108,15 @@ app.whenReady().then(async () => {
   registerIpc();
   createWindow();
   try {
-    sidecar = await startSidecar(engineDir, path.join(app.getPath("userData"), "aiview.sqlite3"), {
-      onCrash: (restarts) => sendEngineStatus({ state: "crashed", restarts }),
-      onFailed: () => sendEngineStatus({ state: "failed" }),
-    });
+    sidecar = await startSidecar(
+      engineDir,
+      path.join(app.getPath("userData"), "aiview.sqlite3"),
+      {
+        onCrash: (restarts) => sendEngineStatus({ state: "crashed", restarts }),
+        onFailed: () => sendEngineStatus({ state: "failed" }),
+      },
+      engineExe,
+    );
     sendEngineStatus({ state: "ready", info: { port: sidecar.port, token: sidecar.token } });
     await pushAllVaultKeys(); // BYOK: key จาก vault → engine ทันทีที่พร้อม
   } catch (err) {

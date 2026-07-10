@@ -68,6 +68,7 @@ export async function startSidecar(
   engineDir: string,
   dbPath: string,
   events: SidecarEvents,
+  engineExe: string | null = null, // prod: PyInstaller exe (TDD §2) — dev: python -m app.main
 ): Promise<SidecarHandle> {
   const token = randomUUID();
   const port = await getFreePort();
@@ -76,7 +77,10 @@ export async function startSidecar(
   let restarts = 0;
 
   const spawnEngine = () => {
-    child = spawn(resolvePython(engineDir), ["-m", "app.main", "--port", String(port)], {
+    const [file, args] = engineExe
+      ? [engineExe, ["--port", String(port)]]
+      : [resolvePython(engineDir), ["-m", "app.main", "--port", String(port)]];
+    child = spawn(file, args, {
       cwd: engineDir,
       env: { ...process.env, ENGINE_TOKEN: token, AIVIEW_DB: dbPath },
       stdio: ["ignore", "pipe", "pipe"],

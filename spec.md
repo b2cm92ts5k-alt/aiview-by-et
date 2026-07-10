@@ -9,7 +9,15 @@
 PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
 
 ## Current State
-**🏁 M0–M5 จบครบทั้ง roadmap [2026-07-10] — M5 ปิด gate ที่ CI เขียว c8ebb9c · พร้อมตัดสินใจ release v0.1.0**
+**🏁 M0–M5 จบครบ + **installer v0.1.0 พร้อมแล้ว** [2026-07-10] — รอผู้ใช้ลองใช้จริงก่อนตัดสินใจ release public**
+
+**Packaging (ทำหลัง M5 ตามที่ผู้ใช้สั่ง):**
+- **PyInstaller** bundle engine → `aiview-engine.exe` (onedir 141MB, prompts/ccxt/uvicorn/websockets ครบ) — smoke เดี่ยวผ่าน: health + ดึงแท่ง Binance จริง + indicators
+- **electron-builder NSIS** → `apps/desktop/release/AIView by ET Setup 0.1.0.exe` (147.5MB, เลือกโฟลเดอร์ได้ + desktop shortcut) · pin `electronVersion: 43.1.0` (workspace hoisting ทำให้ auto-detect ไม่ได้)
+- desktop main รู้จัก packaged mode: spawn engine exe จาก `resources/engine`, โหลด renderer จาก asar (`renderer-dist`)
+- **Packaged smoke PASS**: เปิด win-unpacked exe → engine spawn เอง → health 200 → ปิดแอพ engine ดับตาม
+- Release notes: [docs/RELEASE_NOTES_v0.1.0.md](docs/RELEASE_NOTES_v0.1.0.md) (ทำอะไรได้/ไม่ได้/ข้อจำกัด)
+- build ใหม่ได้ด้วย `npm run package` (renderer build → desktop tsc → PyInstaller → prepare → electron-builder)
 
 **M5 ที่ทำแล้ว (verify จริง):**
 - **Cloud AI providers** (`ai/cloud.py`) — Anthropic / OpenAI / Google / OpenRouter / GitHub Models (OpenAI-compat base) ทั้งหมด key-gated: key ไม่ valid → list ว่าง (F7) · **key handoff** `POST/GET/DELETE /providers/keys` — main อ่าน vault → ส่งเข้า engine in-memory ต่อ session (TDD §9, ไม่ log/ไม่ลงดิสก์) รวม `twelvedata` (BYOK data → /markets โผล่ทันที)
