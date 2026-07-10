@@ -26,7 +26,7 @@ afterEach(() => {
   delete (window as { aiview?: unknown }).aiview;
 });
 
-const health = { status: "ok", version: "0.1.0" };
+const health = { status: "ok", version: "0.1.1" };
 const markets = {
   asset_classes: ["crypto"],
   symbols: [
@@ -72,7 +72,7 @@ describe("App", () => {
 
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByTestId("engine-status")).toHaveTextContent("Engine ทำงานปกติ · v0.1.0");
+      expect(screen.getByTestId("engine-status")).toHaveTextContent("Engine ทำงานปกติ · v0.1.1");
     });
     await waitFor(() => {
       expect(screen.getByTestId("watchlist")).toHaveTextContent("ETH/USDT");

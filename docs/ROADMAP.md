@@ -51,7 +51,7 @@
 - Ollama auto-install + spec check + pull progress
 - Alerts/notifications, risk gate/disclaimer, workspaces, export report
 - in-app model benchmark เทียบ winrate (เคาะแล้ว 2026-07-10: ทำ)
-- docs สำหรับ contributor, GitHub release, MIT
+- docs สำหรับ contributor, GitHub release, License (PolyForm Noncommercial ตั้งแต่ v0.1.1)
 - **Done เมื่อ**: ผู้ใช้ใหม่ติดตั้ง ใช้ได้ครบลูป, repo public พร้อม CI
 
 ## Future · Mobile

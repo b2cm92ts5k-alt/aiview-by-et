@@ -1,6 +1,8 @@
 # Contributing to AIView by ET
 
-ยินดีรับ contribution! โปรเจกต์นี้เป็น MIT open-source — โปรดอ่านกติกาสำคัญก่อนส่ง PR
+ยินดีรับ contribution! โปรเจกต์นี้เป็น **source-available ภายใต้ PolyForm Noncommercial 1.0.0**
+(ใช้/แก้ไข/แจกจ่ายต่อได้เพื่อ non-commercial · **ห้ามใช้/ขายเชิงพาณิชย์** — ดู [LICENSE](LICENSE))
+เมื่อส่ง PR ถือว่าคุณยินยอมให้ผลงานอยู่ภายใต้สัญญาอนุญาตเดียวกัน — โปรดอ่านกติกาสำคัญก่อนส่ง PR
 
 ## ⚠️ กติกาที่ต่อรองไม่ได้
 

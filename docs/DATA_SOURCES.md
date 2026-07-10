@@ -7,7 +7,7 @@
 
 ## 1. ทำไมไม่ใช้ TradingView เป็นแหล่งข้อมูล
 - TradingView ToS **ห้าม** scrape/redistribute ราคาของเขา + ไม่มี public data API สำหรับ 3rd-party app
-- **Advanced Charts / Charting Library** ของ TV ฟรีแต่ต้องขอ agreement + redistribution จำกัด → ใส่ใน public MIT repo ไม่ได้
+- **Advanced Charts / Charting Library** ของ TV ฟรีแต่ต้องขอ agreement + redistribution จำกัด → ใส่ใน public source-available repo ไม่ได้
 - ✅ สิ่งที่ใช้ได้: **Lightweight Charts** (Apache-2.0) = แค่ library วาดกราฟ ไม่มี data มาด้วย → เรา feed data เอง
 - ดู [MEMORY.md](../MEMORY.md) `tv-data-not-redistributable`
 

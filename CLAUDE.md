@@ -52,4 +52,4 @@
 - **AI**: provider abstraction — Ollama (local) + Anthropic/OpenAI/Google/OpenRouter/GitHub Models (cloud, key-gated)
 - **Data**: multi-provider — Binance/ccxt (crypto), Twelve Data/Finnhub/Polygon (stocks/gold/oil/FX)
 - **Tests**: `pytest` (engine), `vitest` + Playwright (frontend)
-- **License**: MIT · open-source บน GitHub
+- **License**: PolyForm Noncommercial 1.0.0 (source-available บน GitHub — ใช้ฟรีเพื่อ non-commercial, ห้ามใช้/ขายเชิงพาณิชย์) · ดู [LICENSE](LICENSE)

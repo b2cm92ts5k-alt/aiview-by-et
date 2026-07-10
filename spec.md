@@ -6,7 +6,7 @@
 แอพ AI ช่วยวิเคราะห์ตลาด (หุ้น/คริปโต/ทองคำ/น้ำมัน/ค่าเงิน) หาจังหวะเข้าเทรด buy/sell แบบ futures,
 จำลองการเทรดของ AI เก็บสถิติ + history แพ้ชนะเป็น dashboard, ให้ผู้ใช้ copy รูปแบบ/การตั้งค่าไปเทรดจริงได้.
 หน้าตาคล้าย TradingView, สร้าง indicator AI เอง, เลือกสมอง AI ได้ทั้ง Local (Ollama) และ Cloud API.
-PC ก่อน แล้วเผื่อ Mobile. Open-source MIT.
+PC ก่อน แล้วเผื่อ Mobile. Source-available บน GitHub ภายใต้ **PolyForm Noncommercial 1.0.0** (v0.1.1+ — ใช้ฟรี non-commercial, ห้ามเชิงพาณิชย์ · v0.1.0 ปล่อยเป็น MIT ไปแล้วเพิกถอนไม่ได้).
 
 ## Current State
 **🏁 M0–M5 จบครบ + **installer v0.1.0 พร้อมแล้ว** [2026-07-10] — รอผู้ใช้ลองใช้จริงก่อนตัดสินใจ release public**

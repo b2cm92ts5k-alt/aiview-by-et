@@ -1,11 +1,11 @@
 {
   "name": "@aiview/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "main": "dist/main.js",
   "description": "AIView by ET - AI market analysis desktop app",
   "author": "ET Office",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",

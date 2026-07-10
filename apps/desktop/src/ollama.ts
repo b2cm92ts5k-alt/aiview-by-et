@@ -58,12 +58,36 @@ export async function ollamaStatus(): Promise<OllamaStatus> {
   return { installed: bin !== null, running, models, downloadUrl: DOWNLOAD_URL };
 }
 
+/**
+ * Launch a fully independent background process that OUTLIVES this app.
+ *
+ * ปิดแอพต้องไม่ดับ Ollama/local model: บน Windows แอพ Electron มักถูกผูกกับ
+ * job object แบบ kill-on-close — child ที่ spawn ปกติ (แม้ detached) ก็ถูก kill
+ * ตามตอนปิดแอพ. ใช้ `Start-Process` (PowerShell) ให้ ollama serve เป็น process
+ * อิสระคนละ job → ปิดแอพแล้ว Ollama + โมเดลที่โหลดอยู่ยังทำงานต่อ.
+ */
+function spawnDetached(bin: string, args: string[]): void {
+  if (process.platform === "win32") {
+    const esc = (s: string) => s.replace(/'/g, "''");
+    const argList = args.length ? ` -ArgumentList ${args.map((a) => `'${esc(a)}'`).join(",")}` : "";
+    const cmd = `Start-Process -FilePath '${esc(bin)}'${argList} -WindowStyle Hidden`;
+    const child = spawn("powershell.exe", ["-NoProfile", "-Command", cmd], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.unref();
+  } else {
+    const child = spawn(bin, args, { detached: true, stdio: "ignore" });
+    child.unref();
+  }
+}
+
 export async function ensureServe(): Promise<boolean> {
   if (await isRunning()) return true;
   const bin = findOllama();
   if (!bin) return false;
-  const child = spawn(bin, ["serve"], { detached: true, stdio: "ignore", windowsHide: true });
-  child.unref();
+  spawnDetached(bin, ["serve"]); // อิสระจากแอพ — ปิดแอพแล้วไม่ดับ (ดู spawnDetached)
   for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 500));
     if (await isRunning()) return true;
