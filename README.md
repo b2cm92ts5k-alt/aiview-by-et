@@ -4,9 +4,20 @@
 
 Desktop app หน้าตาคล้าย TradingView · **Electron + React** frontend · **Python/FastAPI** engine · AI ได้ทั้ง **Local (Ollama)** และ **Cloud API** · PC ก่อน แล้วเผื่อ Mobile
 
-**License:** MIT · **Status:** 🟢 M0–M5 ครบตาม roadmap — chart realtime · AI signals · simulator/backtest · Indicator-AI builder · model manager + benchmark
+**License:** MIT · **Version:** v0.1.0 (Windows) · **Status:** 🟢 M0–M5 ครบตาม roadmap — chart realtime · AI signals · simulator/backtest · Indicator-AI builder · model manager + benchmark
 
 > ⚠️ **Disclaimer:** เครื่องมือนี้ใช้เพื่อการวิเคราะห์และการศึกษาเท่านั้น **ไม่ใช่คำแนะนำการลงทุน** การเทรดมีความเสี่ยง ผลจากอดีต/การจำลองไม่รับประกันผลในอนาคต
+
+---
+
+## ⬇️ ดาวน์โหลด & ติดตั้ง (ผู้ใช้ทั่วไป — Windows)
+
+1. โหลด `AIView by ET Setup 0.1.0.exe` จากหน้า [**Releases**](../../releases) → ติดตั้ง (เลือกโฟลเดอร์ได้)
+   > ยังไม่ได้ code-sign — Windows SmartScreen อาจเตือน กด **More info → Run anyway**
+2. เปิดแอพ → ยอมรับ disclaimer → **เห็นกราฟ BTC/USDT realtime ได้ทันที** (ไม่ต้องตั้งค่าอะไร Binance ฟรี)
+3. อยากใช้ AI: ติดตั้ง [Ollama](https://ollama.com) → แท็บ **Models** เลือกรุ่นตาม VRAM แล้วติดตั้ง → กลับแท็บ Chart กด "วิเคราะห์"
+
+ไม่ต้องมี Python/Node — engine ถูก bundle มาในตัวแล้ว · ดูรายละเอียดทำอะไรได้/ไม่ได้ที่ [RELEASE_NOTES_v0.1.0.md](docs/RELEASE_NOTES_v0.1.0.md)
 
 ---
 
@@ -29,6 +40,7 @@ npm run dev
 ```
 
 Tests: `npm test` (vitest) · `npm run test:engine` (pytest) · `npm run lint` · `npm run typecheck`
+Build installer: `npm run package` (PyInstaller engine + electron-builder NSIS → `apps/desktop/release/`)
 
 โครง repo: `apps/desktop` (Electron main/preload) · `apps/renderer` (React UI) · `engine/` (Python FastAPI) · `packages/shared-types` (FE/BE contract)
 
