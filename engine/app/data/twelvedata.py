@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import UTC
 from typing import Any
 
 import httpx
@@ -109,13 +110,13 @@ class TwelveDataProvider(DataProvider):
 
 
 def _iso_utc(ts_ms: int) -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.fromtimestamp(ts_ms / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _parse_ts(value: str) -> int:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     fmt = "%Y-%m-%d %H:%M:%S" if " " in value else "%Y-%m-%d"
-    return int(datetime.strptime(value, fmt).replace(tzinfo=timezone.utc).timestamp() * 1000)
+    return int(datetime.strptime(value, fmt).replace(tzinfo=UTC).timestamp() * 1000)
